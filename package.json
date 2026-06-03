@@ -1,0 +1,10 @@
+{
+  "name": "nilam-hotel-pos-root",
+  "private": true,
+  "workspaces": [
+    "Frontend"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=Frontend"
+  }
+}
