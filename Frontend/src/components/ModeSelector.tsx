@@ -17,7 +17,7 @@ export function ModeSelector({ onSelectMode, language, onToggleLanguage }: ModeS
       animate={{ opacity: 1 }} 
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
-      className="flex flex-col items-center justify-center min-h-screen bg-brand-charcoal text-white p-6 relative w-full h-full"
+      className="flex flex-col items-center justify-center min-h-dvh bg-brand-charcoal text-white p-6 relative w-full h-full"
     >
       <button 
         onClick={onToggleLanguage}

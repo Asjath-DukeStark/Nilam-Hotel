@@ -120,7 +120,7 @@ export default function App() {
   };
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-gray-100 text-brand-charcoal font-sans relative">
+    <div className="w-screen h-dvh overflow-hidden bg-gray-100 text-brand-charcoal font-sans relative">
       <AnimatePresence mode="popLayout">
         {currentPage === 'pos' && (
           <motion.div
