@@ -55,6 +55,7 @@ html, body, #root {
   display: flex;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   border-top: 3px solid #D97706;
 }
@@ -62,6 +63,7 @@ html, body, #root {
 .left-panel {
   width: var(--left-panel);
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -70,6 +72,7 @@ html, body, #root {
 .right-panel {
   width: var(--right-panel);
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -253,6 +256,98 @@ button:active:not(:disabled) {
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+}
+
+@media (max-height: 750px) {
+  /* Tighten spacing in main POS views */
+  .main-layout .p-6 {
+    padding: 0.75rem !important;
+  }
+  .main-layout .mb-6 {
+    margin-bottom: 0.75rem !important;
+  }
+  
+  /* Shrink header bar size */
+  .main-layout .h-\[48px\] {
+    height: 40px !important;
+  }
+  .main-layout .h-\[48px\] .px-6 {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+  .main-layout .h-\[48px\] button {
+    min-height: 34px !important;
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  /* Shrink Category Bar */
+  .category-bar {
+    height: 76px;
+    padding: 2px 6px;
+    gap: 4px;
+  }
+  .category-btn {
+    height: 66px;
+    width: 60px;
+  }
+  .cat-icon-area {
+    width: 32px;
+    height: 32px;
+  }
+  .cat-label {
+    font-size: 8px;
+    max-width: 56px;
+  }
+
+  /* Shrink Option buttons */
+  .option-btn {
+    height: 32px;
+    font-size: 11px;
+  }
+  .option-group {
+    margin-bottom: 4px;
+  }
+
+  /* Shrink Numpad buttons and display */
+  .numpad-btn {
+    height: 32px;
+    font-size: 13px;
+  }
+  .price-display {
+    height: 32px;
+    font-size: 16px;
+    margin-bottom: 2px;
+  }
+
+  /* Shrink Add / Complete action buttons */
+  .action-btn {
+    height: 32px;
+    font-size: 12px;
+  }
+  
+  /* Right panel layout tightness */
+  .right-panel .p-6 {
+    padding: 0.75rem !important;
+  }
+  .right-panel .mb-6 {
+    margin-bottom: 0.5rem !important;
+  }
+  .right-panel .mb-4 {
+    margin-bottom: 0.5rem !important;
+  }
+  .right-panel .pb-4 {
+    padding-bottom: 0.5rem !important;
+  }
+  .right-panel .gap-4 {
+    gap: 0.5rem !important;
+  }
+  .right-panel .py-3 {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
   }
 }
 
