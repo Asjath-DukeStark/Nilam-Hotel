@@ -1,0 +1,9 @@
+node_modules/
+Frontend/node_modules/
+Frontend/dist/
+.vercel
+*.log
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

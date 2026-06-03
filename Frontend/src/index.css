@@ -1,0 +1,258 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@400;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  /* Font sizes */
+  --font-xs:    clamp(9px,  1.2vw, 12px);
+  --font-sm:    clamp(11px, 1.5vw, 14px);
+  --font-md:    clamp(13px, 1.8vw, 16px);
+  --font-lg:    clamp(15px, 2.2vw, 20px);
+  --font-xl:    clamp(18px, 2.8vw, 26px);
+  --font-price: clamp(20px, 3.5vw, 32px);
+
+  /* Spacing */
+  --gap-sm:  clamp(4px,  0.8vw, 8px);
+  --gap-md:  clamp(8px,  1.2vw, 14px);
+  --gap-lg:  clamp(12px, 1.8vw, 20px);
+
+  /* Touch targets */
+  --btn-height-sm:  clamp(36px, 5vh,  44px);
+  --btn-height-md:  40px;
+  --btn-height-lg:  clamp(50px, 7vh,  64px);
+  --numpad-btn:     42px;
+
+  /* Category bar */
+  --cat-btn-size:   60px;
+  --cat-font:       clamp(9px,  1.1vw, 12px);
+
+  /* Panel widths */
+  --left-panel:  60%;
+  --right-panel: 40%;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;  /* prevents double-tap zoom on buttons */
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* Momentum scroll for all scrollable areas */
+.scrollable {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+}
+
+/* Main Layout */
+.main-layout {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  border-top: 3px solid #D97706;
+}
+
+.left-panel {
+  width: var(--left-panel);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.right-panel {
+  width: var(--right-panel);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Option Buttons & Actions */
+.action-btn {
+  height: 40px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.option-area {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 0.5rem;
+}
+
+.option-group {
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.option-label {
+  font-size: 10px;
+  color: #9CA3AF;
+  margin-bottom: 3px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  display: block;
+}
+
+.option-btn {
+  height: 38px;
+  font-size: 13px;
+  flex: 1;               /* equal width in a row */
+  min-width: 0;          /* allow shrinking */
+  padding: 0 var(--gap-sm);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.option-row {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+
+/* Category Bar */
+.category-bar {
+  display: flex;
+  flex-direction: row;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 6px 10px;
+  height: 96px;
+  align-items: center;
+  gap: 6px;
+}
+
+.category-btn {
+  flex: 0 0 auto;
+  width: 72px;
+  height: 80px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.cat-icon-area {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f3f4f6;
+  overflow: hidden;
+}
+
+.cat-icon-area img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fallback-initial {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.cat-label {
+  font-size: 10px;
+  font-weight: 500;
+  text-align: center;
+  white-space: normal;
+  line-height: 1.2;
+  max-width: 68px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.cat-upload-btn {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  width: 14px;
+  height: 14px;
+  background-color: rgba(255, 255, 255, 0.85);
+  border-radius: 4px 0 10px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+}
+
+/* Numpad Responsive */
+.numpad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  width: 100%;
+}
+
+.numpad-btn {
+  height: 38px;
+  font-size: 15px;
+  border-radius: 8px;
+  touch-action: manipulation;
+}
+
+.price-display {
+  font-size: 20px;
+  height: 36px;
+  margin-bottom: 4px;
+}
+
+/* Touch optimisations */
+button {
+  user-select: none;
+}
+button:active:not(:disabled) {
+  transform: scale(0.97);
+  transition: transform 0.1s;
+}
+
+@theme {
+  --color-brand-primary: #D97706;
+  --color-brand-charcoal: #1C1C1E;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Sora", sans-serif;
+  --breakpoint-xs: 480px;
+  --breakpoint-sm: 600px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1440px;
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+

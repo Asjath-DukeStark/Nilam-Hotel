@@ -1,0 +1,6 @@
+{
+  "name": "Restaurant POS (Phase 1)",
+  "description": "Tablet-friendly restaurant point-of-sale app with English/Tamil translations and dine-in/takeaway modes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
