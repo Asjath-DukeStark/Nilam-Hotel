@@ -285,6 +285,10 @@ function StockRow({ item, stockInfo, onUpdateFrozen, onUpdateFried, transferQty,
   }, [stockInfo.frozenQty]);
 
   const [transferError, setTransferError] = useState('');
+  
+  const [friedMode, setFriedMode] = useState<'correct' | 'damage' | 'free'>('correct');
+  const [deductQty, setDeductQty] = useState(0);
+  const [deductError, setDeductError] = useState('');
 
   const handleTransfer = () => {
     setTransferError('');
@@ -368,19 +372,90 @@ function StockRow({ item, stockInfo, onUpdateFrozen, onUpdateFried, transferQty,
             <span className="text-gray-400 text-[10px] lowercase normal-case">({t.manualCorrectionOnly})</span>
           </h4>
           
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => onUpdateFried(Math.max(0, stockInfo.friedQty - 1))}
-              className="w-12 h-12 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xl font-bold active:scale-95"
-            >-</button>
-            <div className="flex-1 h-12 bg-gray-50 border border-gray-200 rounded-full flex items-center justify-center font-mono font-bold text-lg">
-              {stockInfo.friedQty} {t.pcs}
-            </div>
-            <button 
-              onClick={() => onUpdateFried(stockInfo.friedQty + 1)}
-              className="w-12 h-12 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xl font-bold active:scale-95"
-            >+</button>
+          {/* Fried Stock Mode Selector */}
+          <div className="flex bg-gray-100 p-1 rounded-xl gap-1">
+            <button
+              type="button"
+              onClick={() => setFriedMode('correct')}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 ${
+                friedMode === 'correct' ? 'bg-white text-brand-charcoal shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {t.correct}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setFriedMode('damage'); setDeductQty(0); setDeductError(''); }}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 ${
+                friedMode === 'damage' ? 'bg-red-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              💥 {t.damage}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setFriedMode('free'); setDeductQty(0); setDeductError(''); }}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 ${
+                friedMode === 'free' ? 'bg-green-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              🎁 {t.free}
+            </button>
           </div>
+
+          {friedMode === 'correct' ? (
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => onUpdateFried(Math.max(0, stockInfo.friedQty - 1))}
+                className="w-12 h-12 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xl font-bold active:scale-95"
+              >-</button>
+              <div className="flex-1 h-12 bg-gray-50 border border-gray-200 rounded-full flex items-center justify-center font-mono font-bold text-lg">
+                {stockInfo.friedQty} {t.pcs}
+              </div>
+              <button 
+                onClick={() => onUpdateFried(stockInfo.friedQty + 1)}
+                className="w-12 h-12 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xl font-bold active:scale-95"
+              >+</button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <button 
+                  type="button"
+                  onClick={() => { setDeductError(''); setDeductQty(Math.max(0, deductQty - 1)); }}
+                  className="w-12 h-12 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xl font-bold active:scale-95"
+                >-</button>
+                <div className="flex-1 h-12 bg-gray-50 border border-gray-200 rounded-full flex items-center justify-center font-mono font-bold text-lg text-gray-700">
+                  {deductQty} {t.pcs}
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => { setDeductError(''); setDeductQty(deductQty + 1); }}
+                  className="w-12 h-12 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xl font-bold active:scale-95"
+                >+</button>
+              </div>
+              {deductError && <p className="text-red-500 text-xs px-1 text-center font-bold">{deductError}</p>}
+              <button 
+                type="button"
+                onClick={() => {
+                  setDeductError('');
+                  if (deductQty <= 0) return;
+                  if (deductQty > stockInfo.friedQty) {
+                    setDeductError(t.notEnoughFried);
+                    return;
+                  }
+                  onUpdateFried(stockInfo.friedQty - deductQty);
+                  setDeductQty(0);
+                }}
+                disabled={deductQty <= 0}
+                className={`h-11 w-full text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm active:scale-95 ${
+                  friedMode === 'damage' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
+                }`}
+              >
+                {friedMode === 'damage' ? t.deductDamage : t.deductFree}
+              </button>
+            </div>
+          )}
 
           <div className="mt-4 flex flex-col gap-2 p-3 bg-gray-50 border border-gray-200 rounded-2xl relative">
             <div className="flex items-center gap-2">

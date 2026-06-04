@@ -10,17 +10,18 @@ interface DhosaiBuilderProps {
   prices: Record<string, number>;
   onAdd: (item: BillItem) => void;
   onComplete: (item: BillItem) => void;
+  initialItem?: BillItem;
 }
 
-export function DhosaiBuilder({ language, prices, onAdd, onComplete }: DhosaiBuilderProps) {
+export function DhosaiBuilder({ language, prices, onAdd, onComplete, initialItem }: DhosaiBuilderProps) {
   const t = translations[language];
 
   const dbBeefPrice = prices.dhosaBeef ?? DEFAULT_PRICES.dhosaBeef;
   const dbExtraPrice = prices.dhosaExtra ?? DEFAULT_PRICES.dhosaExtra;
 
-  const [baseType, setBaseType] = useState<'beef' | 'extra'>('beef');
-  const [subType, setSubType] = useState<'beef' | 'chicken' | 'egg'>('beef');
-  const [price, setPrice] = useState<string>(String(dbBeefPrice));
+  const [baseType, setBaseType] = useState<'beef' | 'extra'>(() => (initialItem?.baseType as 'beef' | 'extra') || 'beef');
+  const [subType, setSubType] = useState<'beef' | 'chicken' | 'egg'>(() => (initialItem?.subType as 'beef' | 'chicken' | 'egg') || 'beef');
+  const [price, setPrice] = useState<string>(() => initialItem ? String(initialItem.price) : String(dbBeefPrice));
 
   const resetState = () => {
     setBaseType('beef');

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { ArrowLeft, Settings, Package2 } from 'lucide-react';
+import { ArrowLeft, Settings, Package2, Receipt } from 'lucide-react';
+import { InvoiceHistory } from './components/InvoiceHistory';
 import { ModeSelector } from './components/ModeSelector';
 import { CategoryBar } from './components/CategoryBar';
 import { OrderPanel } from './components/OrderPanel';
@@ -28,7 +29,11 @@ export default function App() {
   const [tableNumber, setTableNumber] = useState('');
 
   // Navigation & Page State
-  const [currentPage, setCurrentPage] = useState<'pos' | 'settings' | 'stock'>('pos');
+  const [currentPage, setCurrentPage] = useState<'pos' | 'settings' | 'stock' | 'invoices'>('pos');
+  const [isCheckoutMode, setIsCheckoutMode] = useState<boolean>(false);
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+  const [viewingInvoice, setViewingInvoice] = useState<any | null>(null);
+  const [editingInvoiceNo, setEditingInvoiceNo] = useState<string | null>(null);
   const [itemPrices, setItemPrices] = useLocalStorage<Record<string, number>>('itemPrices', {});
   const [restaurantName, setRestaurantName] = useLocalStorage<string>('restaurantName', RESTAURANT_NAME);
 
@@ -41,6 +46,19 @@ export default function App() {
     localStorage.setItem('menu_prices', JSON.stringify(prices));
   }, [prices]);
 
+  const [extraPrices, setExtraPrices] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem('extra_prices');
+    return saved ? JSON.parse(saved) : {
+      extraChicken: 100,
+      extraBeef: 120,
+      extraEgg: 50
+    };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('extra_prices', JSON.stringify(extraPrices));
+  }, [extraPrices]);
+
   // Phase 6 states
   const [shortiesItems, setShortiesItems] = useLocalStorage<any[]>('shorties_items_list', SHORTIES_ITEMS);
   const [beverageItems, setBeverageItems] = useLocalStorage<any[]>('beverage_items', BEVERAGE_ITEMS);
@@ -52,12 +70,21 @@ export default function App() {
   };
 
   const handleAddItem = (item: BillItem) => {
-    // If it's a shorties item, we should deduct stock here
-    if (item.id.startsWith('shorties_')) { // wait, item.id is unique per bill item? Let's assume item has itemId or something.
-      // Wait, how do we know if it's shorties? `item.categoryId` or similar? Let's just deduct it in the FixedItemBuilder when it's added.
-      // Actually we will handle stock deduction inside FixedItemBuilder immediately before calling onAdd.
+    if (isCheckoutMode) {
+      if (editingItemIndex !== null) {
+        setBillItems(prev => {
+          const next = [...prev];
+          next[editingItemIndex] = { ...item, id: prev[editingItemIndex].id };
+          return next;
+        });
+        setEditingItemIndex(null);
+      } else {
+        setBillItems(prev => [...prev, item]);
+      }
+      setShowBillModal(true);
+    } else {
+      setBillItems(prev => [...prev, item]);
     }
-    setBillItems(prev => [...prev, item]);
   };
 
   const handleRemoveItem = (id: string) => {
@@ -69,6 +96,7 @@ export default function App() {
   };
 
   const handleCompleteBill = () => {
+    setIsCheckoutMode(true);
     setShowBillModal(true);
   };
 
@@ -78,6 +106,116 @@ export default function App() {
     setSelectedCategory(null);
     setTableNumber('');
     setOrderType('dineIn');
+    setIsCheckoutMode(false);
+    setEditingItemIndex(null);
+  };
+
+  const handleSaveInvoice = (payStatus: 'pay' | 'paid', phone: string, printLanguage: 'en' | 'ta', invoiceNo: string) => {
+    const now = new Date();
+    const YYYY = now.getFullYear();
+    const MM = String(now.getMonth() + 1).padStart(2, '0');
+    const DD = String(now.getDate()).padStart(2, '0');
+    const dateStr = `${YYYY}-${MM}-${DD}`;
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+
+    const isEditingExisting = editingInvoiceNo !== null;
+    const finalInvoiceNo = isEditingExisting ? editingInvoiceNo : invoiceNo;
+
+    const savedInvoices = JSON.parse(localStorage.getItem('invoices') || '[]');
+    
+    let updatedInvoices;
+    if (isEditingExisting) {
+      updatedInvoices = savedInvoices.map((inv: any) => {
+        if (inv.invoiceNo === finalInvoiceNo) {
+          return {
+            ...inv,
+            mode: mode === 'DINE_IN' ? 'dine-in' : 'takeaway',
+            orderType: orderType,
+            tableNo: tableNumber,
+            phone: phone.trim(),
+            items: [...billItems],
+            total: billItems.reduce((sum, item) => sum + item.price, 0),
+            payStatus,
+            language: printLanguage
+          };
+        }
+        return inv;
+      });
+    } else {
+      const newInvoice = {
+        invoiceNo: finalInvoiceNo,
+        date: dateStr,
+        time: timeStr,
+        mode: mode === 'DINE_IN' ? 'dine-in' : 'takeaway',
+        orderType: orderType,
+        tableNo: tableNumber,
+        phone: phone.trim(),
+        items: [...billItems],
+        total: billItems.reduce((sum, item) => sum + item.price, 0),
+        payStatus,
+        language: printLanguage
+      };
+      savedInvoices.push(newInvoice);
+      updatedInvoices = savedInvoices;
+    }
+
+    localStorage.setItem('invoices', JSON.stringify(updatedInvoices));
+
+    setBillItems([]);
+    setShowBillModal(false);
+    setSelectedCategory(null);
+    setTableNumber('');
+    setOrderType('dineIn');
+    setIsCheckoutMode(false);
+    setEditingItemIndex(null);
+    setEditingInvoiceNo(null);
+  };
+
+  const handleUpdatePayStatus = (invoiceNo: string, newStatus: 'pay' | 'paid') => {
+    setViewingInvoice(prev => {
+      if (prev && prev.invoiceNo === invoiceNo) {
+        return { ...prev, payStatus: newStatus };
+      }
+      return prev;
+    });
+
+    const savedInvoices = JSON.parse(localStorage.getItem('invoices') || '[]');
+    const nextInvoices = savedInvoices.map((inv: any) => {
+      if (inv.invoiceNo === invoiceNo) {
+        return { ...inv, payStatus: newStatus };
+      }
+      return inv;
+    });
+    localStorage.setItem('invoices', JSON.stringify(nextInvoices));
+  };
+
+  const handleUpdatePhone = (invoiceNo: string, newPhone: string) => {
+    setViewingInvoice(prev => {
+      if (prev && prev.invoiceNo === invoiceNo) {
+        return { ...prev, phone: newPhone };
+      }
+      return prev;
+    });
+
+    const savedInvoices = JSON.parse(localStorage.getItem('invoices') || '[]');
+    const nextInvoices = savedInvoices.map((inv: any) => {
+      if (inv.invoiceNo === invoiceNo) {
+        return { ...inv, phone: newPhone };
+      }
+      return inv;
+    });
+    localStorage.setItem('invoices', JSON.stringify(nextInvoices));
+  };
+
+  const handleEditHistoricalInvoice = (invoice: any) => {
+    setEditingInvoiceNo(invoice.invoiceNo);
+    setBillItems(invoice.items);
+    setMode(invoice.mode === 'dine-in' ? 'DINE_IN' : 'TAKEAWAY');
+    setOrderType(invoice.orderType);
+    setTableNumber(invoice.tableNo);
+    setIsCheckoutMode(true);
+    setViewingInvoice(null);
+    setShowBillModal(true);
   };
 
   const t = translations[language];
@@ -92,19 +230,30 @@ export default function App() {
       }
     };
 
+    const editingItem = editingItemIndex !== null ? billItems[editingItemIndex] : undefined;
+
     switch (selectedCategory) {
       case 'kottu':
       case 'dolphinKottu':
       case 'rice':
-        return <ItemBuilder key={selectedCategory} category={selectedCategory} prices={prices} {...commonProps} />;
+        return (
+          <ItemBuilder 
+            key={selectedCategory} 
+            category={selectedCategory} 
+            prices={prices} 
+            extraPrices={extraPrices}
+            initialItem={editingItem}
+            {...commonProps} 
+          />
+        );
       case 'dhosai':
-        return <DhosaiBuilder key="dhosai" prices={prices} {...commonProps} />;
+        return <DhosaiBuilder key="dhosai" prices={prices} initialItem={editingItem} {...commonProps} />;
       case 'shorties':
-        return <FixedItemBuilder key="shorties" categoryId="shorties" items={shortiesItems} customPrices={itemPrices} stock={stock} {...commonProps} />;
+        return <FixedItemBuilder key="shorties" categoryId="shorties" items={shortiesItems} customPrices={itemPrices} stock={stock} initialItem={editingItem} {...commonProps} />;
       case 'beverage':
-        return <FixedItemBuilder key="beverage" categoryId="beverage" items={beverageItems} customPrices={itemPrices} {...commonProps} />;
+        return <FixedItemBuilder key="beverage" categoryId="beverage" items={beverageItems} customPrices={itemPrices} initialItem={editingItem} {...commonProps} />;
       case 'hot':
-        return <FixedItemBuilder key="hot" categoryId="hot" items={hotItems} customPrices={itemPrices} {...commonProps} />;
+        return <FixedItemBuilder key="hot" categoryId="hot" items={hotItems} customPrices={itemPrices} initialItem={editingItem} {...commonProps} />;
       default:
         return (
           <>
@@ -134,7 +283,7 @@ export default function App() {
             <AnimatePresence mode="wait">
               {showBillModal ? (
                 <BillModal 
-                  key="bill-modal"
+                  key="checkout-bill"
                   language={language}
                   items={billItems}
                   mode={mode}
@@ -142,6 +291,29 @@ export default function App() {
                   tableNumber={tableNumber}
                   restaurantName={restaurantName}
                   onNewBill={handleNewBill}
+                  extraPrices={extraPrices}
+                  isViewOnly={false}
+                  invoiceNo={editingInvoiceNo || undefined}
+                  onEditItem={(idx) => {
+                    setEditingItemIndex(idx);
+                    const item = billItems[idx];
+                    setSelectedCategory(item.categoryId);
+                    setShowBillModal(false);
+                  }}
+                  onDeleteItem={(idx) => {
+                    setBillItems(prev => prev.filter((_, i) => i !== idx));
+                  }}
+                  onAddMoreItems={() => {
+                    setEditingItemIndex(null);
+                    setSelectedCategory(null);
+                    setShowBillModal(false);
+                  }}
+                  onSaveInvoice={handleSaveInvoice}
+                  onCancelCheckout={() => {
+                    setShowBillModal(false);
+                    setIsCheckoutMode(false);
+                    setEditingItemIndex(null);
+                  }}
                 />
               ) : !mode ? (
                 <ModeSelector 
@@ -166,15 +338,21 @@ export default function App() {
                       <div className="flex gap-4 items-center">
                         <button 
                           onClick={() => {
-                            setMode(null);
-                            setSelectedCategory(null);
-                            setBillItems([]);
+                            if (isCheckoutMode) {
+                              setShowBillModal(true);
+                            } else {
+                              setMode(null);
+                              setSelectedCategory(null);
+                              setBillItems([]);
+                            }
                           }}
                           className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors min-h-[48px] active:scale-95 group"
                         >
                           <ArrowLeft className="w-5 h-5 text-gray-500 group-hover:text-brand-charcoal transition-colors" />
                           <span className="font-heading font-semibold text-brand-charcoal text-sm tracking-wide">
-                            {mode === 'DINE_IN' ? t.dineIn : t.takeaway}
+                            {isCheckoutMode 
+                              ? (language === 'ta' ? 'பில்லுக்குத் திரும்பு' : 'Return to Bill')
+                              : (mode === 'DINE_IN' ? t.dineIn : t.takeaway)}
                           </span>
                         </button>
                       </div>
@@ -196,6 +374,13 @@ export default function App() {
                           ) : stock.anyLowStock ? (
                             <span className="absolute top-0 right-0 w-3 h-3 bg-amber-500 border-2 border-white rounded-full"></span>
                           ) : null}
+                        </button>
+                        <button
+                          onClick={() => setCurrentPage('invoices')}
+                          className="p-3 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors active:scale-95 text-gray-600 ml-2"
+                          title="Invoice History"
+                        >
+                          <Receipt className="w-5 h-5" />
                         </button>
                         <button 
                           onClick={() => setCurrentPage('settings')}
@@ -245,6 +430,7 @@ export default function App() {
                     onRemoveItem={handleRemoveItem}
                     onClearBill={handleClearBill}
                     onCompleteBill={handleCompleteBill}
+                    extraPrices={extraPrices}
                   />
                 </motion.div>
               )}
@@ -276,6 +462,8 @@ export default function App() {
               hotItems={hotItems}
               setHotItems={setHotItems}
               onOpenStockManager={() => setCurrentPage('stock')}
+              extraPrices={extraPrices}
+              setExtraPrices={setExtraPrices}
             />
           </motion.div>
         )}
@@ -295,6 +483,57 @@ export default function App() {
               stock={stock}
               items={shortiesItems}
               setItems={setShortiesItems}
+            />
+          </motion.div>
+        )}
+
+        {currentPage === 'invoices' && (
+          <motion.div
+            key="invoices-page"
+            initial={{ x: '100vw' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100vw' }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="w-full h-full fixed inset-0 z-50 bg-gray-50"
+          >
+            <InvoiceHistory 
+              language={language}
+              onBack={() => setCurrentPage('pos')}
+              onViewInvoice={(invoice) => {
+                setViewingInvoice(invoice);
+              }}
+            />
+          </motion.div>
+        )}
+
+        {viewingInvoice && (
+          <motion.div
+            key="viewing-invoice-modal"
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            transition={{ duration: 0.2 }}
+            className="w-full h-full fixed inset-0 z-50 bg-white"
+          >
+            <BillModal 
+              language={viewingInvoice.language}
+              items={viewingInvoice.items}
+              mode={viewingInvoice.mode === 'dine-in' ? 'DINE_IN' : 'TAKEAWAY'}
+              orderType={viewingInvoice.orderType}
+              tableNumber={viewingInvoice.tableNo}
+              phone={viewingInvoice.phone}
+              restaurantName={restaurantName}
+              onNewBill={handleNewBill}
+              extraPrices={extraPrices}
+              isViewOnly={true}
+              invoiceNo={viewingInvoice.invoiceNo}
+              payStatus={viewingInvoice.payStatus}
+              date={viewingInvoice.date}
+              time={viewingInvoice.time}
+              onCloseViewOnly={() => setViewingInvoice(null)}
+              onUpdatePayStatus={handleUpdatePayStatus}
+              onUpdatePhone={handleUpdatePhone}
+              onEditHistoricalInvoice={() => handleEditHistoricalInvoice(viewingInvoice)}
             />
           </motion.div>
         )}

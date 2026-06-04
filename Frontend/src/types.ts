@@ -3,7 +3,7 @@ export interface BillItem {
   categoryId: string;
   baseType?: string;    // Used for Dhosai Type (Beef | Extra) or Kottu Base
   subType?: string;     // Used for Dhosai Extra Sub-Type (Beef | Chicken | Egg)
-  proteins: string[];
+  proteins: (string | { name: string; qty: number })[];
   sizeMode?: string;
   qty?: number;         // For Shorties, Beverages, Hot
   price: number;

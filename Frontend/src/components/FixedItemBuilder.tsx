@@ -21,14 +21,27 @@ interface FixedItemBuilderProps {
   onAdd: (item: BillItem) => void;
   onComplete: (item: BillItem) => void;
   stock?: any; // Pumping the stock object from useStock
+  initialItem?: BillItem;
 }
 
-export function FixedItemBuilder({ categoryId, items, customPrices = {}, language, onAdd, onComplete, stock }: FixedItemBuilderProps) {
+export function FixedItemBuilder({ categoryId, items, customPrices = {}, language, onAdd, onComplete, stock, initialItem }: FixedItemBuilderProps) {
   const t = translations[language];
 
-  const [selectedItemId, setSelectedItemId] = useState<string>(items[0]?.id || '');
+  const getPrice = (item: FixedItem) => customPrices[item.id] !== undefined ? customPrices[item.id] : item.price;
+
+  const [selectedItemId, setSelectedItemId] = useState<string>(() => initialItem?.baseType || items[0]?.id || '');
   const [qtyStr, setQtyStr] = useState<string>(() => {
-    const firstP = items[0] && customPrices[items[0].id] !== undefined ? customPrices[items[0].id] : (items[0]?.price || 0);
+    if (initialItem) {
+      const selectedInfo = items.find(i => i.id === initialItem.baseType);
+      const isFixed = selectedInfo && getPrice(selectedInfo) > 0;
+      if (isFixed) {
+        return initialItem.qty ? String(initialItem.qty) : '1';
+      } else {
+        return String(initialItem.price);
+      }
+    }
+    const firstItem = items[0];
+    const firstP = firstItem ? getPrice(firstItem) : 0;
     return firstP > 0 ? '1' : '';
   });
   
@@ -36,7 +49,6 @@ export function FixedItemBuilder({ categoryId, items, customPrices = {}, languag
   const [stockWarning, setStockWarning] = useState<string>('');
 
   const selectedItemInfo = items.find(i => i.id === selectedItemId);
-  const getPrice = (item: FixedItem) => customPrices[item.id] !== undefined ? customPrices[item.id] : item.price;
   
   const unitPrice = selectedItemInfo ? getPrice(selectedItemInfo) : 0;
   const currentTotal = unitPrice * (parseInt(qtyStr) || 0);

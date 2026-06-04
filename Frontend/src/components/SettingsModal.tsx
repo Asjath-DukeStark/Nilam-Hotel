@@ -19,6 +19,8 @@ interface SettingsModalProps {
   hotItems: any[];
   setHotItems: React.Dispatch<React.SetStateAction<any[]>>;
   onOpenStockManager: () => void;
+  extraPrices: Record<string, number>;
+  setExtraPrices: React.Dispatch<React.SetStateAction<Record<string, number>>>;
 }
 
 interface PriceInputRowProps {
@@ -232,7 +234,9 @@ export function SettingsModal({
   setBeverageItems,
   hotItems,
   setHotItems,
-  onOpenStockManager
+  onOpenStockManager,
+  extraPrices,
+  setExtraPrices
 }: SettingsModalProps) {
   const t = translations[language];
 
@@ -356,6 +360,33 @@ export function SettingsModal({
                   label={language === 'ta' ? 'கூடுதல்' : 'Extra'} 
                   value={prices.dhosaExtra ?? 250} 
                   onSave={(val) => setPrices(prev => ({ ...prev, dhosaExtra: val }))}
+                  t={t}
+                />
+              </div>
+            </div>
+
+            {/* EXTRA PRICES */}
+            <div className="bg-gray-50/50 p-3.5 rounded-xl border border-gray-100">
+              <h4 className="font-bold text-xs text-brand-charcoal mb-2 uppercase tracking-wide">
+                {language === 'ta' ? 'கூடுதல் விலைகள்' : 'Extra Prices'}
+              </h4>
+              <div className="flex flex-col gap-2">
+                <PriceInputRow 
+                  label={language === 'ta' ? 'கூடுதல் கோழி' : 'Extra Chicken'} 
+                  value={extraPrices.extraChicken ?? 100} 
+                  onSave={(val) => setExtraPrices(prev => ({ ...prev, extraChicken: val }))}
+                  t={t}
+                />
+                <PriceInputRow 
+                  label={language === 'ta' ? 'கூடுதல் மாடு' : 'Extra Beef'} 
+                  value={extraPrices.extraBeef ?? 120} 
+                  onSave={(val) => setExtraPrices(prev => ({ ...prev, extraBeef: val }))}
+                  t={t}
+                />
+                <PriceInputRow 
+                  label={language === 'ta' ? 'கூடுதல் முட்டை' : 'Extra Egg'} 
+                  value={extraPrices.extraEgg ?? 50} 
+                  onSave={(val) => setExtraPrices(prev => ({ ...prev, extraEgg: val }))}
                   t={t}
                 />
               </div>

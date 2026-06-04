@@ -14,6 +14,7 @@ interface OrderPanelProps {
   onRemoveItem: (id: string) => void;
   onClearBill: () => void;
   onCompleteBill: () => void;
+  extraPrices?: Record<string, number>;
 }
 
 export function OrderPanel({ 
@@ -26,7 +27,8 @@ export function OrderPanel({
   setTableNumber,
   onRemoveItem, 
   onClearBill,
-  onCompleteBill 
+  onCompleteBill,
+  extraPrices
 }: OrderPanelProps) {
   const t = translations[language];
 
@@ -105,8 +107,61 @@ export function OrderPanel({
                   const categoryLabel = t[item.categoryId as keyof typeof t] || item.categoryId;
                   const baseTypeLabel = item.baseType ? t[item.baseType as keyof typeof t] : null;
                   const subTypeLabel = item.subType ? t[item.subType as keyof typeof t] : null;
-                  const proteinsLabel = item.proteins && item.proteins.length > 0 ? item.proteins.map(p => t[p as keyof typeof t] || p).join(' + ') : null;
-                  const sizeLabel = item.sizeMode ? t[item.sizeMode as keyof typeof t] || item.sizeMode : null;
+                  
+                  const isKottuFlow = ['kottu', 'dolphinKottu', 'rice'].includes(item.categoryId);
+                  
+                  let proteinsLabel = null;
+                  let sizeLabel = null;
+                  
+                  if (isKottuFlow) {
+                    const sizeMode = item.sizeMode || '';
+                    const hasExtra = sizeMode.includes('extra');
+                    
+                    if (hasExtra) {
+                      const breakdown = (item.proteins || []).map((p: any) => {
+                        const pName = typeof p === 'string' ? p : p.name;
+                        const pQty = typeof p === 'string' ? 1 : p.qty;
+                        const translatedName = t[pName.toLowerCase() as keyof typeof t] || pName;
+                        
+                        const priceKey = `extra${pName.charAt(0).toUpperCase()}${pName.slice(1).toLowerCase()}`;
+                        const unitPrice = (extraPrices && extraPrices[priceKey]) ?? (priceKey === 'extraChicken' ? 100 : priceKey === 'extraBeef' ? 120 : priceKey === 'extraEgg' ? 50 : 0);
+                        
+                        return `${translatedName}×${pQty} @ LKR${unitPrice}`;
+                      }).join(' + ');
+                      
+                      const extraSuffix = breakdown ? `(${breakdown})` : '';
+                      const extraWord = t.extra || 'Extra';
+                      if (sizeMode === 'normal_extra') {
+                        sizeLabel = `${t.normal} + ${extraWord}${extraSuffix}`;
+                      } else if (sizeMode === 'full_extra') {
+                        sizeLabel = `${t.full} + ${extraWord}${extraSuffix}`;
+                      } else {
+                        sizeLabel = `${extraWord}${extraSuffix}`;
+                      }
+                    } else {
+                      if (item.proteins && item.proteins.length > 0) {
+                        proteinsLabel = item.proteins.map((p: any) => {
+                          const pName = typeof p === 'string' ? p : p.name;
+                          return t[pName.toLowerCase() as keyof typeof t] || pName;
+                        }).join(' + ');
+                      }
+                      
+                      if (sizeMode === 'normal') {
+                        sizeLabel = t.normal;
+                      } else if (sizeMode === 'full') {
+                        sizeLabel = t.full;
+                      }
+                    }
+                  } else {
+                    // Non-kottu flow: standard formatting
+                    proteinsLabel = item.proteins && item.proteins.length > 0 
+                      ? item.proteins.map((p: any) => {
+                          const pName = typeof p === 'string' ? p : p.name;
+                          return t[pName.toLowerCase() as keyof typeof t] || pName;
+                        }).join(' + ') 
+                      : null;
+                    sizeLabel = item.sizeMode ? t[item.sizeMode as keyof typeof t] || item.sizeMode : null;
+                  }
                   
                   const parts = [
                     categoryLabel,
