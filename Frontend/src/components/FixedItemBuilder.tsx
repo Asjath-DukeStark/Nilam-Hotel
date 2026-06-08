@@ -35,14 +35,12 @@ export function FixedItemBuilder({ categoryId, items, customPrices = {}, languag
       const selectedInfo = items.find(i => i.id === initialItem.baseType);
       const isFixed = selectedInfo && getPrice(selectedInfo) > 0;
       if (isFixed) {
-        return initialItem.qty ? String(initialItem.qty) : '1';
+        return initialItem.qty ? String(initialItem.qty) : '0';
       } else {
         return String(initialItem.price);
       }
     }
-    const firstItem = items[0];
-    const firstP = firstItem ? getPrice(firstItem) : 0;
-    return firstP > 0 ? '1' : '';
+    return '0';
   });
   
   // Stock warning
@@ -58,8 +56,7 @@ export function FixedItemBuilder({ categoryId, items, customPrices = {}, languag
   const resetState = () => {
     const firstItem = items[0];
     setSelectedItemId(firstItem?.id || '');
-    const firstP = firstItem ? getPrice(firstItem) : 0;
-    setQtyStr(firstP > 0 ? '1' : '');
+    setQtyStr('0');
     setStockWarning('');
   };
 
@@ -132,7 +129,7 @@ export function FixedItemBuilder({ categoryId, items, customPrices = {}, languag
     if (isShorties && out) return;
     
     setSelectedItemId(id);
-    setQtyStr(p > 0 ? '1' : '');
+    setQtyStr('0');
   };
 
   return (

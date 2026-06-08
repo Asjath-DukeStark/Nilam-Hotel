@@ -7,4 +7,5 @@ export interface BillItem {
   sizeMode?: string;
   qty?: number;         // For Shorties, Beverages, Hot
   price: number;
+  mainProtein?: string;
 }

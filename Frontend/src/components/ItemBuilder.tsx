@@ -43,11 +43,20 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
     const mode = initialItem?.sizeMode || '';
     return mode === 'extra' || mode === 'normal_extra' || mode === 'full_extra';
   });
-  const [price, setPrice] = useState<string>(initialItem ? String(initialItem.price) : '');
+  const [price, setPrice] = useState<string>(initialItem ? String(initialItem.price) : '0');
+  const [mainProtein, setMainProtein] = useState<string | null>(() => {
+    if (initialItem && initialItem.proteins && initialItem.proteins.length > 0) {
+      const first = initialItem.proteins.find(p => typeof p === 'string' ? p !== 'extra' : p.name !== 'extra');
+      if (first) {
+        return typeof first === 'string' ? first : first.name;
+      }
+    }
+    return null;
+  });
 
   // Popup states
   const [activeProteinPopup, setActiveProteinPopup] = useState<string | null>(null);
-  const [popupQty, setPopupQty] = useState<string>('1');
+  const [popupQty, setPopupQty] = useState<string>('0');
 
   const handleBaseChange = (type: string) => setBaseType(type);
 
@@ -55,7 +64,7 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
     if (isExtra) {
       // Quantity popup mode
       const existing = proteins.find(p => p.name === pName);
-      const initialQty = existing ? existing.qty : 1;
+      const initialQty = existing ? existing.qty : 0;
       setPopupQty(String(initialQty));
       setActiveProteinPopup(pName);
     } else {
@@ -65,8 +74,10 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
       setProteins(prev => {
         const alreadySelected = prev.some(p => p.name === pName);
         if (alreadySelected) {
+          setMainProtein(null);
           return [];
         } else {
+          setMainProtein(pName);
           return [{ name: pName, qty: 1 }];
         }
       });
@@ -130,9 +141,22 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
     });
   };
 
+  // Synchronize mainProtein with selected proteins list
+  useEffect(() => {
+    const validProteins = proteins.filter(p => p.name !== 'extra').map(p => p.name);
+    if (validProteins.length > 0) {
+      if (!mainProtein || !validProteins.includes(mainProtein)) {
+        setMainProtein(validProteins[0]);
+      }
+    } else {
+      setMainProtein(null);
+    }
+  }, [proteins, mainProtein]);
+
   // Price auto-calculation
   useEffect(() => {
     let base = 0;
+    const hasBaseSize = isNormal || isFull;
     if (isNormal) base = normalPrice;
     else if (isFull) base = fullPrice;
 
@@ -141,12 +165,15 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
       proteins.forEach(p => {
         const priceKey = `extra${p.name.charAt(0).toUpperCase()}${p.name.slice(1).toLowerCase()}`;
         const pPrice = extraPrices[priceKey] ?? 0;
-        extraTotal += p.qty * pPrice;
+        const isStandardProtein = ['chicken', 'beef', 'egg'].includes(p.name.toLowerCase());
+        const isMain = p.name === mainProtein;
+        const chargedQty = (isStandardProtein && isMain && hasBaseSize) ? Math.max(0, p.qty - 1) : p.qty;
+        extraTotal += chargedQty * pPrice;
       });
     }
 
     setPrice(String(base + extraTotal));
-  }, [isNormal, isFull, isExtra, proteins, prices, extraPrices, normalPrice, fullPrice]);
+  }, [isNormal, isFull, isExtra, proteins, prices, extraPrices, normalPrice, fullPrice, mainProtein]);
 
   const resetState = () => {
     setBaseType('');
@@ -154,7 +181,8 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
     setIsNormal(false);
     setIsFull(false);
     setIsExtra(false);
-    setPrice('');
+    setPrice('0');
+    setMainProtein(null);
   };
 
   const sizeModeVal = () => {
@@ -174,6 +202,7 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
       proteins,
       sizeMode: sizeModeVal(),
       price: Number(price) || 0,
+      mainProtein: mainProtein || undefined,
     };
   };
 
@@ -252,7 +281,7 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
                     style={{ flexBasis: 'calc(50% - 3px)', flexGrow: 1 }}
                   >
                     {t[p as keyof typeof t]}
-                    {selectedItem && isExtra ? ` ×${selectedItem.qty}` : ''}
+                    {selectedItem && isExtra && selectedItem.qty > 1 ? ` ×${selectedItem.qty}` : ''}
                   </button>
                 );
               })}

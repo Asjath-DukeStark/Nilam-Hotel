@@ -13,9 +13,10 @@ export function Numpad({ value, onChange, mode, language }: NumpadProps) {
 
   const handleKeyPress = (key: string) => {
     if (key === 'C') {
-      onChange('');
+      onChange('0');
     } else if (key === 'Backspace') {
-      onChange(value.slice(0, -1));
+      const next = value.slice(0, -1);
+      onChange(next === '' ? '0' : next);
     } else {
       if (value === '0') {
         onChange(key);

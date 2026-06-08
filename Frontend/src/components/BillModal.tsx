@@ -192,17 +192,39 @@ export function BillModal({
                 const sizeMode = item.sizeMode || '';
                 const hasExtra = sizeMode.includes('extra');
                 
+                const firstProtein = (item.proteins || []).find((pr: any) => {
+                  const prName = typeof pr === 'string' ? pr : pr.name;
+                  return prName !== 'extra';
+                });
+                const fallbackMain = firstProtein ? (typeof firstProtein === 'string' ? firstProtein : firstProtein.name) : undefined;
+                const actualMain = item.mainProtein || fallbackMain;
+
+                if (actualMain) {
+                  proteinsLabel = activeT[actualMain.toLowerCase() as keyof typeof activeT] || actualMain;
+                }
+
                 if (hasExtra) {
-                  const breakdown = (item.proteins || []).map((p: any) => {
+                  const breakdownParts: string[] = [];
+                  (item.proteins || []).forEach((p: any) => {
                     const pName = typeof p === 'string' ? p : p.name;
                     const pQty = typeof p === 'string' ? 1 : p.qty;
-                    const translatedName = activeT[pName.toLowerCase() as keyof typeof activeT] || pName;
+                    if (pName === 'extra') return;
                     
+                    const translatedName = activeT[pName.toLowerCase() as keyof typeof activeT] || pName;
                     const priceKey = `extra${pName.charAt(0).toUpperCase()}${pName.slice(1).toLowerCase()}`;
                     const unitPrice = (extraPrices && extraPrices[priceKey]) ?? (priceKey === 'extraChicken' ? 100 : priceKey === 'extraBeef' ? 120 : priceKey === 'extraEgg' ? 50 : 0);
                     
-                    return `${translatedName}×${pQty} @ LKR${unitPrice}`;
-                  }).join(' + ');
+                    const isMain = pName === actualMain;
+                    if (isMain) {
+                      const extraQty = pQty - 1;
+                      if (extraQty > 0) {
+                        breakdownParts.push(`${translatedName}×${extraQty} @ LKR${unitPrice}`);
+                      }
+                    } else {
+                      breakdownParts.push(`${translatedName}×${pQty} @ LKR${unitPrice}`);
+                    }
+                  });
+                  const breakdown = breakdownParts.join(' + ');
                   
                   const extraSuffix = breakdown ? `(${breakdown})` : '';
                   const extraWord = activeT.extra || 'Extra';
@@ -214,13 +236,6 @@ export function BillModal({
                     sizeLabel = `${extraWord}${extraSuffix}`;
                   }
                 } else {
-                  if (item.proteins && item.proteins.length > 0) {
-                    proteinsLabel = item.proteins.map((p: any) => {
-                      const pName = typeof p === 'string' ? p : p.name;
-                      return activeT[pName.toLowerCase() as keyof typeof activeT] || pName;
-                    }).join(' + ');
-                  }
-                  
                   if (sizeMode === 'normal') {
                     sizeLabel = activeT.normal;
                   } else if (sizeMode === 'full') {

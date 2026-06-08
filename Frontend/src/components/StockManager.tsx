@@ -103,50 +103,55 @@ export function StockManager({ language, onBack, stock, items, setItems }: Stock
           />
         )}
 
-        {editingItem && (
-          <ItemForm 
-            t={t}
-            language={language}
-            initialItem={editingItem}
-            onSave={(updatedItem) => {
-              setItems(items.map(i => i.id === updatedItem.id ? updatedItem : i));
-              setEditingItem(null);
-            }}
-            onCancel={() => setEditingItem(null)}
-          />
-        )}
-
         <div className="grid grid-cols-1 gap-6">
-          {items.map(item => (
-            <div key={item.id} className="relative group">
-              <div className="absolute top-4 right-4 z-20 flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                <button 
-                  onClick={() => setEditingItem(item)}
-                  className="p-2 bg-white text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-100 shadow-sm"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-                <button 
-                  onClick={() => handleDelete(item.id)}
-                  className="p-2 bg-white text-red-500 border border-red-200 rounded-xl hover:bg-red-50 shadow-sm"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
+          {items.map(item => {
+            const isEditingThis = editingItem && editingItem.id === item.id;
+            return (
+              <div key={item.id} className="relative group">
+                {isEditingThis ? (
+                  <ItemForm 
+                    t={t}
+                    language={language}
+                    initialItem={editingItem}
+                    onSave={(updatedItem) => {
+                      setItems(items.map(i => i.id === updatedItem.id ? updatedItem : i));
+                      setEditingItem(null);
+                    }}
+                    onCancel={() => setEditingItem(null)}
+                  />
+                ) : (
+                  <>
+                    <div className="absolute top-4 right-4 z-20 flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => setEditingItem(item)}
+                        className="p-2 bg-white text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-100 shadow-sm"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(item.id)}
+                        className="p-2 bg-white text-red-500 border border-red-200 rounded-xl hover:bg-red-50 shadow-sm"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
 
-              <StockRow 
-                item={item}
-                stockInfo={stockData[item.id] || { frozenQty: 0, friedQty: 0 }}
-                onUpdateFrozen={(qty: number) => updateFrozen(item.id, qty)}
-                onUpdateFried={(qty: number) => updateFried(item.id, qty)}
-                transferQty={transferQtys[item.id] || 0}
-                onUpdateTransferDelta={(delta: number) => handleUpdateTransfer(item.id, delta)}
-                onTransfer={(qty: number) => handleTransferSubmit(item.id, qty)}
-                language={language}
-                t={t}
-              />
-            </div>
-          ))}
+                    <StockRow 
+                      item={item}
+                      stockInfo={stockData[item.id] || { frozenQty: 0, friedQty: 0 }}
+                      onUpdateFrozen={(qty: number) => updateFrozen(item.id, qty)}
+                      onUpdateFried={(qty: number) => updateFried(item.id, qty)}
+                      transferQty={transferQtys[item.id] || 0}
+                      onUpdateTransferDelta={(delta: number) => handleUpdateTransfer(item.id, delta)}
+                      onTransfer={(qty: number) => handleTransferSubmit(item.id, qty)}
+                      language={language}
+                      t={t}
+                    />
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
