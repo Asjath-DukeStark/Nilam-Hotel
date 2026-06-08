@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, AlertTriangle, Plus, Pencil, Trash2, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Plus, Pencil, Trash2, Image as ImageIcon, Delete } from 'lucide-react';
 import { Language, translations } from '../translations';
 import { useStock, StockInfo } from '../hooks/useStock';
 import { useItemImage } from '../hooks/useItemImage';
@@ -21,16 +21,36 @@ interface StockManagerProps {
 
 export function StockManager({ language, onBack, stock, items, setItems }: StockManagerProps) {
   const t = translations[language];
-  const { stockData, updateFrozen, updateFried, transferStock, anyLowStock, anyOutOfStock } = stock;
+  const { stockData, updateFrozen, updateFried, transferStock, anyLowStock, anyOutOfStock, logs, clearLogs } = stock;
 
   const [transferQtys, setTransferQtys] = useState<Record<string, number>>({});
   const [editingItem, setEditingItem] = useState<FixedItem | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [activeTab, setActiveTab] = useState<'info' | 'history'>('info');
+
+  const [numpadOpen, setNumpadOpen] = useState(false);
+  const [numpadValue, setNumpadValue] = useState('0');
+  const [numpadTitle, setNumpadTitle] = useState('');
+  const [numpadCallback, setNumpadCallback] = useState<((val: number) => void) | null>(null);
+
+  const openNumpad = (title: string, initialValue: string, callback: (newVal: number) => void) => {
+    setNumpadTitle(title);
+    setNumpadValue(initialValue);
+    setNumpadCallback(() => callback);
+    setNumpadOpen(true);
+  };
 
   const handleUpdateTransfer = (itemId: string, delta: number) => {
     setTransferQtys(prev => ({
       ...prev,
       [itemId]: Math.max(0, (prev[itemId] || 0) + delta)
+    }));
+  };
+
+  const handleSetTransferQty = (itemId: string, qty: number) => {
+    setTransferQtys(prev => ({
+      ...prev,
+      [itemId]: Math.max(0, qty)
     }));
   };
 
@@ -54,6 +74,19 @@ export function StockManager({ language, onBack, stock, items, setItems }: Stock
     }
   };
 
+  const getActionLabel = (action: string) => {
+    switch (action) {
+      case 'UPDATE_FROZEN': return t.logUpdateFrozen;
+      case 'UPDATE_FRIED': return t.logUpdateFried;
+      case 'TRANSFER': return t.logTransfer;
+      case 'SALE': return t.logSale;
+      case 'CANCEL_REPLENISH': return t.logCancelReplenish;
+      case 'DAMAGE_DEDUCTION': return t.logDamageDeduction;
+      case 'FREE_DEDUCTION': return t.logFreeDeduction;
+      default: return action;
+    }
+  };
+
   const showBanner = anyLowStock || anyOutOfStock;
 
   return (
@@ -73,87 +106,285 @@ export function StockManager({ language, onBack, stock, items, setItems }: Stock
       </div>
 
       <div className="flex-1 scrollable w-full max-w-5xl mx-auto p-6 space-y-6">
-        {showBanner && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3 text-amber-800 shadow-sm">
-            <AlertTriangle className="w-6 h-6 shrink-0" />
-            <span className="font-semibold">{t.itemsLowStock}</span>
-          </div>
-        )}
-
-        <div className="flex justify-between items-center bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
-          <h2 className="text-xl font-bold font-heading text-brand-charcoal">{t.shortiesItems}</h2>
-          <button 
-            onClick={() => setIsAdding(true)}
-            className="flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-xl font-bold hover:bg-amber-600 transition-colors active:scale-95 shadow-sm"
+        {/* Tab Selector */}
+        <div className="flex bg-gray-200 p-1 rounded-2xl max-w-md mx-auto shadow-xs">
+          <button
+            onClick={() => setActiveTab('info')}
+            className={`flex-1 py-2 text-sm font-bold rounded-xl transition-all active:scale-95 ${
+              activeTab === 'info'
+                ? 'bg-amber-500 text-white shadow-md'
+                : 'text-gray-600 hover:text-brand-charcoal'
+            }`}
           >
-            <Plus className="w-5 h-5" />
-            {t.addNewItem}
+            {t.stockInfo}
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`flex-1 py-2 text-sm font-bold rounded-xl transition-all active:scale-95 ${
+              activeTab === 'history'
+                ? 'bg-amber-500 text-white shadow-md'
+                : 'text-gray-600 hover:text-brand-charcoal'
+            }`}
+          >
+            {t.historyLog}
           </button>
         </div>
 
-        {isAdding && (
-          <ItemForm 
-            t={t}
-            language={language}
-            onSave={(newItem) => {
-              setItems([...items, newItem]);
-              setIsAdding(false);
-            }}
-            onCancel={() => setIsAdding(false)}
-          />
-        )}
-
-        <div className="grid grid-cols-1 gap-6">
-          {items.map(item => {
-            const isEditingThis = editingItem && editingItem.id === item.id;
-            return (
-              <div key={item.id} className="relative group">
-                {isEditingThis ? (
-                  <ItemForm 
-                    t={t}
-                    language={language}
-                    initialItem={editingItem}
-                    onSave={(updatedItem) => {
-                      setItems(items.map(i => i.id === updatedItem.id ? updatedItem : i));
-                      setEditingItem(null);
-                    }}
-                    onCancel={() => setEditingItem(null)}
-                  />
-                ) : (
-                  <>
-                    <div className="absolute top-4 right-4 z-20 flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => setEditingItem(item)}
-                        className="p-2 bg-white text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-100 shadow-sm"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(item.id)}
-                        className="p-2 bg-white text-red-500 border border-red-200 rounded-xl hover:bg-red-50 shadow-sm"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    <StockRow 
-                      item={item}
-                      stockInfo={stockData[item.id] || { frozenQty: 0, friedQty: 0 }}
-                      onUpdateFrozen={(qty: number) => updateFrozen(item.id, qty)}
-                      onUpdateFried={(qty: number) => updateFried(item.id, qty)}
-                      transferQty={transferQtys[item.id] || 0}
-                      onUpdateTransferDelta={(delta: number) => handleUpdateTransfer(item.id, delta)}
-                      onTransfer={(qty: number) => handleTransferSubmit(item.id, qty)}
-                      language={language}
-                      t={t}
-                    />
-                  </>
-                )}
+        {activeTab === 'info' ? (
+          <>
+            {showBanner && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3 text-amber-800 shadow-sm">
+                <AlertTriangle className="w-6 h-6 shrink-0" />
+                <span className="font-semibold">{t.itemsLowStock}</span>
               </div>
-            );
-          })}
-        </div>
+            )}
+
+            <div className="flex justify-between items-center bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
+              <h2 className="text-xl font-bold font-heading text-brand-charcoal">{t.shortiesItems}</h2>
+              <button 
+                onClick={() => setIsAdding(true)}
+                className="flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-xl font-bold hover:bg-amber-600 transition-colors active:scale-95 shadow-sm"
+              >
+                <Plus className="w-5 h-5" />
+                {t.addNewItem}
+              </button>
+            </div>
+
+            {isAdding && (
+              <ItemForm 
+                t={t}
+                language={language}
+                onSave={(newItem) => {
+                  setItems([...items, newItem]);
+                  setIsAdding(false);
+                }}
+                onCancel={() => setIsAdding(false)}
+              />
+            )}
+
+            <div className="grid grid-cols-1 gap-6">
+              {items.map(item => {
+                const isEditingThis = editingItem && editingItem.id === item.id;
+                return (
+                  <div key={item.id} className="relative group">
+                    {isEditingThis ? (
+                      <ItemForm 
+                        t={t}
+                        language={language}
+                        initialItem={editingItem}
+                        onSave={(updatedItem) => {
+                          setItems(items.map(i => i.id === updatedItem.id ? updatedItem : i));
+                          setEditingItem(null);
+                        }}
+                        onCancel={() => setEditingItem(null)}
+                      />
+                    ) : (
+                      <>
+                        <div className="absolute top-4 right-4 z-20 flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                          <button 
+                            onClick={() => setEditingItem(item)}
+                            className="p-2 bg-white text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-100 shadow-sm"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(item.id)}
+                            className="p-2 bg-white text-red-500 border border-red-200 rounded-xl hover:bg-red-50 shadow-sm"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <StockRow 
+                          item={item}
+                          stockInfo={stockData[item.id] || { frozenQty: 0, friedQty: 0 }}
+                          onUpdateFrozen={(qty: number) => updateFrozen(item.id, qty)}
+                          onUpdateFried={(qty: number) => updateFried(item.id, qty)}
+                          transferQty={transferQtys[item.id] || 0}
+                          onUpdateTransferDelta={(delta: number) => handleUpdateTransfer(item.id, delta)}
+                          onSetTransferQty={(qty: number) => handleSetTransferQty(item.id, qty)}
+                          onTransfer={(qty: number) => handleTransferSubmit(item.id, qty)}
+                          language={language}
+                          t={t}
+                          openNumpad={openNumpad}
+                        />
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white">
+              <h2 className="text-xl font-bold font-heading text-brand-charcoal">{t.historyLog}</h2>
+              {logs.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (confirm(t.confirmClearHistory)) {
+                      clearLogs();
+                    }
+                  }}
+                  className="bg-red-50 text-red-600 px-4 py-2 rounded-xl font-bold hover:bg-red-100 transition-colors active:scale-95 text-sm"
+                >
+                  {t.clearHistory}
+                </button>
+              )}
+            </div>
+            {logs.length === 0 ? (
+              <div className="p-8 text-center text-gray-400 font-medium">
+                No history records found
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100">
+                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.timestamp}</th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.itemName}</th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t.action}</th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">{t.qty}</th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">{t.frozenStock}</th>
+                      <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">{t.friedStock}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 font-medium text-sm text-brand-charcoal">
+                    {logs.map((log) => (
+                      <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-gray-500 font-mono text-xs">
+                          {new Date(log.timestamp).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {log.itemName}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                            log.action === 'SALE' ? 'bg-green-50 text-green-700' :
+                            log.action === 'CANCEL_REPLENISH' ? 'bg-blue-50 text-blue-700' :
+                            log.action === 'DAMAGE_DEDUCTION' ? 'bg-red-50 text-red-700' :
+                            log.action === 'FREE_DEDUCTION' ? 'bg-purple-50 text-purple-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {getActionLabel(log.action)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center font-mono font-bold">
+                          {log.qty}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center font-mono text-gray-500 font-normal">
+                          {log.prevFrozen} → <span className="font-bold text-brand-charcoal">{log.newFrozen}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center font-mono text-gray-500 font-normal">
+                          {log.prevFried} → <span className="font-bold text-brand-charcoal">{log.newFried}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Numpad Popup Modal */}
+      {numpadOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50">
+          <div className="bg-white rounded-3xl p-6 shadow-2xl max-w-sm w-full mx-4 border border-gray-100 flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-heading font-bold text-brand-charcoal text-center">
+              {numpadTitle}
+            </h3>
+            
+            {/* Display */}
+            <div className="text-4xl font-heading font-black text-brand-primary my-2 bg-amber-50 px-6 py-2 rounded-2xl border border-amber-100 min-w-[150px] text-center font-mono">
+              {numpadValue || '0'}
+            </div>
+            
+            {/* Keyboard */}
+            <div className="grid grid-cols-3 gap-2 w-full max-w-[280px]">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => {
+                    setNumpadValue(prev => {
+                      if (prev === '0') return String(num);
+                      return prev + num;
+                    });
+                  }}
+                  className="h-12 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-lg font-heading font-bold text-brand-charcoal flex items-center justify-center outline-none"
+                >
+                  {num}
+                </button>
+              ))}
+              
+              {/* Row 4: C, 0, Backspace */}
+              <button
+                type="button"
+                onClick={() => setNumpadValue('0')}
+                className="h-12 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-lg font-heading font-bold text-brand-charcoal flex items-center justify-center outline-none"
+              >
+                {t.clear}
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  setNumpadValue(prev => {
+                    if (prev === '0') return '0';
+                    return prev + '0';
+                  });
+                }}
+                className="h-12 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-lg font-heading font-bold text-brand-charcoal flex items-center justify-center outline-none"
+              >
+                0
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  setNumpadValue(prev => {
+                    if (prev.length <= 1) return '0';
+                    return prev.slice(0, -1);
+                  });
+                }}
+                className="h-12 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-brand-charcoal flex items-center justify-center outline-none"
+              >
+                <Delete className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex gap-3 w-full mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setNumpadOpen(false);
+                  setNumpadCallback(null);
+                }}
+                className="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 active:scale-95 transition-colors"
+              >
+                {t.cancel}
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  if (numpadCallback) {
+                    numpadCallback(Number(numpadValue));
+                  }
+                  setNumpadOpen(false);
+                  setNumpadCallback(null);
+                }}
+                className="flex-1 py-3 bg-brand-primary text-white font-bold rounded-xl hover:bg-amber-700 active:scale-95 transition-colors"
+              >
+                {t.save}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -280,7 +511,7 @@ function ItemForm({ t, language, initialItem, onSave, onCancel }: any) {
   );
 }
 
-function StockRow({ item, stockInfo, onUpdateFrozen, onUpdateFried, transferQty, onUpdateTransferDelta, onTransfer, language, t }: any) {
+function StockRow({ item, stockInfo, onUpdateFrozen, onUpdateFried, transferQty, onUpdateTransferDelta, onSetTransferQty, onTransfer, language, t, openNumpad }: any) {
   const [image] = useItemImage(item.id);
   const [localFrozen, setLocalFrozen] = useState(stockInfo.frozenQty);
   
@@ -351,9 +582,19 @@ function StockRow({ item, stockInfo, onUpdateFrozen, onUpdateFried, transferQty,
               }}
               className="w-12 h-12 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xl font-bold active:scale-95"
             >-</button>
-            <div className="flex-1 h-12 bg-gray-50 border border-gray-200 rounded-full flex items-center justify-center font-mono font-bold text-lg">
+            <button
+              type="button"
+              onClick={() => {
+                openNumpad(
+                  `${t.enterQty} - ${t.frozenStock}`,
+                  String(localFrozen),
+                  (newVal: number) => setLocalFrozen(newVal)
+                );
+              }}
+              className="flex-1 h-12 bg-gray-50 border border-gray-200 rounded-full flex items-center justify-center font-mono font-bold text-lg hover:bg-gray-100 active:scale-95 transition-all text-brand-charcoal outline-none shadow-xs"
+            >
               {localFrozen} {t.pcs}
-            </div>
+            </button>
             <button 
               onClick={() => {
                 setLocalFrozen(localFrozen + 1);
@@ -414,9 +655,19 @@ function StockRow({ item, stockInfo, onUpdateFrozen, onUpdateFried, transferQty,
                 onClick={() => onUpdateFried(Math.max(0, stockInfo.friedQty - 1))}
                 className="w-12 h-12 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xl font-bold active:scale-95"
               >-</button>
-              <div className="flex-1 h-12 bg-gray-50 border border-gray-200 rounded-full flex items-center justify-center font-mono font-bold text-lg">
+              <button
+                type="button"
+                onClick={() => {
+                  openNumpad(
+                    `${t.enterQty} - ${t.friedStock} (${t.correct})`,
+                    String(stockInfo.friedQty),
+                    (newVal: number) => onUpdateFried(newVal)
+                  );
+                }}
+                className="flex-1 h-12 bg-gray-50 border border-gray-200 rounded-full flex items-center justify-center font-mono font-bold text-lg hover:bg-gray-100 active:scale-95 transition-all text-brand-charcoal outline-none shadow-xs"
+              >
                 {stockInfo.friedQty} {t.pcs}
-              </div>
+              </button>
               <button 
                 onClick={() => onUpdateFried(stockInfo.friedQty + 1)}
                 className="w-12 h-12 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xl font-bold active:scale-95"
@@ -430,9 +681,22 @@ function StockRow({ item, stockInfo, onUpdateFrozen, onUpdateFried, transferQty,
                   onClick={() => { setDeductError(''); setDeductQty(Math.max(0, deductQty - 1)); }}
                   className="w-12 h-12 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xl font-bold active:scale-95"
                 >-</button>
-                <div className="flex-1 h-12 bg-gray-50 border border-gray-200 rounded-full flex items-center justify-center font-mono font-bold text-lg text-gray-700">
+                <button
+                  type="button"
+                  onClick={() => {
+                    openNumpad(
+                      `${t.enterQty} - ${friedMode === 'damage' ? t.damage : t.free}`,
+                      String(deductQty),
+                      (newVal: number) => {
+                        setDeductError('');
+                        setDeductQty(newVal);
+                      }
+                    );
+                  }}
+                  className="flex-1 h-12 bg-gray-50 border border-gray-200 rounded-full flex items-center justify-center font-mono font-bold text-lg hover:bg-gray-100 active:scale-95 transition-all text-gray-700 outline-none shadow-xs"
+                >
                   {deductQty} {t.pcs}
-                </div>
+                </button>
                 <button 
                   type="button"
                   onClick={() => { setDeductError(''); setDeductQty(deductQty + 1); }}
@@ -469,9 +733,22 @@ function StockRow({ item, stockInfo, onUpdateFrozen, onUpdateFried, transferQty,
                 onClick={() => { setTransferError(''); onUpdateTransferDelta(-1); }}
                 className="w-11 h-11 rounded-xl bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-xl font-bold active:scale-95"
               >-</button>
-              <div className="flex-1 h-11 bg-white border border-gray-300 rounded-xl flex items-center justify-center font-mono font-bold text-gray-700">
+              <button
+                type="button"
+                onClick={() => {
+                  openNumpad(
+                    `${t.enterQty} - ${t.transfer}`,
+                    String(transferQty),
+                    (newVal: number) => {
+                      setTransferError('');
+                      onSetTransferQty(newVal);
+                    }
+                  );
+                }}
+                className="flex-1 h-11 bg-white border border-gray-300 rounded-xl flex items-center justify-center font-mono font-bold text-gray-700 hover:bg-gray-50 active:scale-95 transition-all outline-none shadow-xs"
+              >
                 {transferQty} {t.pcs}
-              </div>
+              </button>
               <button 
                 onClick={() => { setTransferError(''); onUpdateTransferDelta(1); }}
                 className="w-11 h-11 rounded-xl bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-xl font-bold active:scale-95"

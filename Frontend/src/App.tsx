@@ -72,6 +72,10 @@ export default function App() {
   const handleAddItem = (item: BillItem) => {
     if (isCheckoutMode) {
       if (editingItemIndex !== null) {
+        const oldItem = billItems[editingItemIndex];
+        if (oldItem && oldItem.categoryId === 'shorties' && oldItem.baseType) {
+          stock.replenishStock(oldItem.baseType, oldItem.qty || 1);
+        }
         setBillItems(prev => {
           const next = [...prev];
           next[editingItemIndex] = { ...item, id: prev[editingItemIndex].id };
@@ -88,10 +92,19 @@ export default function App() {
   };
 
   const handleRemoveItem = (id: string) => {
+    const item = billItems.find(x => x.id === id);
+    if (item && item.categoryId === 'shorties' && item.baseType) {
+      stock.replenishStock(item.baseType, item.qty || 1);
+    }
     setBillItems(prev => prev.filter(item => item.id !== id));
   };
 
   const handleClearBill = () => {
+    billItems.forEach(item => {
+      if (item.categoryId === 'shorties' && item.baseType) {
+        stock.replenishStock(item.baseType, item.qty || 1);
+      }
+    });
     setBillItems([]);
   };
 
@@ -301,6 +314,10 @@ export default function App() {
                     setShowBillModal(false);
                   }}
                   onDeleteItem={(idx) => {
+                    const item = billItems[idx];
+                    if (item && item.categoryId === 'shorties' && item.baseType) {
+                      stock.replenishStock(item.baseType, item.qty || 1);
+                    }
                     setBillItems(prev => prev.filter((_, i) => i !== idx));
                   }}
                   onAddMoreItems={() => {
@@ -341,6 +358,11 @@ export default function App() {
                             if (isCheckoutMode) {
                               setShowBillModal(true);
                             } else {
+                              billItems.forEach(item => {
+                                if (item.categoryId === 'shorties' && item.baseType) {
+                                  stock.replenishStock(item.baseType, item.qty || 1);
+                                }
+                              });
                               setMode(null);
                               setSelectedCategory(null);
                               setBillItems([]);

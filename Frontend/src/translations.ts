@@ -110,7 +110,23 @@ export const translations = {
     confirmDelete: 'Delete this item? This will also remove its stock data.',
     confirmDeleteOk: 'Confirm Delete',
     cannotDeleteLast: 'At least one item must exist.',
-    imageField: 'Image (Optional)'
+    imageField: 'Image (Optional)',
+    stockInfo: 'Stock Info',
+    historyLog: 'History Log',
+    timestamp: 'Time',
+    action: 'Action',
+    prevVal: 'Prev',
+    newVal: 'New',
+    clearHistory: 'Clear History',
+    confirmClearHistory: 'Are you sure you want to clear the entire history log?',
+    enterQty: 'Enter Quantity',
+    logUpdateFrozen: 'Updated Frozen Stock',
+    logUpdateFried: 'Corrected Fried Stock',
+    logTransfer: 'Transferred Frozen → Fried',
+    logSale: 'Sales Deduction',
+    logCancelReplenish: 'Bill Cancelled (Stock Restored)',
+    logDamageDeduction: 'Damage Deduction',
+    logFreeDeduction: 'Free Gift Deduction'
   },
   ta: {
     appTitle: 'உணவக கட்டணம்',
@@ -221,6 +237,22 @@ export const translations = {
     confirmDelete: 'இந்த பொருளை நீக்கவா? இது அதன் இருப்பு தரவையும் அகற்றும்.',
     confirmDeleteOk: 'நீக்குவதை உறுதிசெய்',
     cannotDeleteLast: 'குறைந்தபட்சம் ஒரு பொருளாவது இருக்க வேண்டும்.',
-    imageField: 'படம் (விருப்பத்தேர்வு)'
+    imageField: 'படம் (விருப்பத்தேர்வு)',
+    stockInfo: 'இருப்பு விவரம்',
+    historyLog: 'வரலாற்றுப் பதிவு',
+    timestamp: 'நேரம்',
+    action: 'செயல்பாடு',
+    prevVal: 'முன்னர்',
+    newVal: 'இப்போது',
+    clearHistory: 'வரலாற்றை அழி',
+    confirmClearHistory: 'வரலாற்றுப் பதிவை முழுமையாக அழிக்க விரும்புகிறீர்களா?',
+    enterQty: 'அளவை உள்ளிடவும்',
+    logUpdateFrozen: 'உறைந்த இருப்பு திருத்தப்பட்டது',
+    logUpdateFried: 'வறுத்த இருப்பு திருத்தப்பட்டது',
+    logTransfer: 'மாற்றப்பட்டது உறைந்த → வறுத்த',
+    logSale: 'விற்பனை கழிப்பு',
+    logCancelReplenish: 'பில் ரத்து (இருப்பு திரும்பியது)',
+    logDamageDeduction: 'சேதம் கழிப்பு',
+    logFreeDeduction: 'இலவச கழிப்பு'
   }
 };

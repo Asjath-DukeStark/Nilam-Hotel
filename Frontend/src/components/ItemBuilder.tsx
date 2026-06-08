@@ -64,8 +64,11 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
     if (isExtra) {
       // Quantity popup mode
       const existing = proteins.find(p => p.name === pName);
-      const initialQty = existing ? existing.qty : 0;
-      setPopupQty(String(initialQty));
+      const isMain = pName === mainProtein;
+      const currentQty = existing ? existing.qty : 0;
+      const initialExtraQty = isMain ? Math.max(0, currentQty - 1) : currentQty;
+
+      setPopupQty(String(initialExtraQty));
       setActiveProteinPopup(pName);
     } else {
       // Single select, qty 1, no popup
@@ -84,18 +87,21 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
     }
   };
 
-  const handlePopupConfirm = (qtyVal: number) => {
+  const handlePopupConfirm = (extraQtyVal: number) => {
     if (activeProteinPopup) {
       const pName = activeProteinPopup;
+      const isMain = pName === mainProtein;
+      const newTotalQty = isMain ? extraQtyVal + 1 : extraQtyVal;
+
       setProteins(prev => {
-        if (qtyVal <= 0) {
+        if (newTotalQty <= 0 || (!isMain && extraQtyVal <= 0)) {
           return prev.filter(p => p.name !== pName);
         }
         const existing = prev.some(p => p.name === pName);
         if (existing) {
-          return prev.map(p => p.name === pName ? { ...p, qty: qtyVal } : p);
+          return prev.map(p => p.name === pName ? { ...p, qty: newTotalQty } : p);
         } else {
-          return [...prev, { name: pName, qty: qtyVal }];
+          return [...prev, { name: pName, qty: newTotalQty }];
         }
       });
     }
@@ -363,8 +369,8 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
           <div className="bg-white rounded-3xl p-6 shadow-2xl max-w-sm w-full mx-4 border border-gray-100 flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-200">
             <h3 className="text-lg font-heading font-bold text-brand-charcoal text-center">
               {language === 'ta' 
-                ? `எத்தனை ${t[activeProteinPopup as keyof typeof t] || activeProteinPopup}?` 
-                : `How many ${t[activeProteinPopup as keyof typeof t] || activeProteinPopup}?`}
+                ? `எத்தனை கூடுதல் ${t[activeProteinPopup as keyof typeof t] || activeProteinPopup}?` 
+                : `How many Extra ${t[activeProteinPopup as keyof typeof t] || activeProteinPopup}?`}
             </h3>
             
             {/* Current quantity display */}
@@ -416,6 +422,18 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
                 ⌫
               </button>
             </div>
+
+            {/* Remove Protein Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setProteins(prev => prev.filter(p => p.name !== activeProteinPopup));
+                setActiveProteinPopup(null);
+              }}
+              className="w-full max-w-[280px] py-2 px-4 rounded-xl bg-red-50 hover:bg-red-100 text-red-650 font-heading font-bold uppercase transition-all outline-none border border-red-205 text-[11px] active:scale-95 text-center mt-1"
+            >
+              {language === 'ta' ? 'அகற்று' : 'Remove Protein'}
+            </button>
             
             {/* Actions */}
             <div className="flex gap-3 w-full mt-2">
