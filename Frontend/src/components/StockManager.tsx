@@ -179,27 +179,11 @@ export function StockManager({ language, onBack, stock, items, setItems }: Stock
                         onCancel={() => setEditingItem(null)}
                       />
                     ) : (
-                      <>
-                        <div className="absolute top-4 right-4 z-20 flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                          <button 
-                            onClick={() => setEditingItem(item)}
-                            className="p-2 bg-white text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-100 shadow-sm"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(item.id)}
-                            className="p-2 bg-white text-red-500 border border-red-200 rounded-xl hover:bg-red-50 shadow-sm"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-
                         <StockRow 
                           item={item}
                           stockInfo={stockData[item.id] || { frozenQty: 0, friedQty: 0 }}
                           onUpdateFrozen={(qty: number) => updateFrozen(item.id, qty)}
-                          onUpdateFried={(qty: number) => updateFried(item.id, qty)}
+                          onUpdateFried={(qty: number, reason?: 'correct' | 'damage' | 'free') => updateFried(item.id, qty, reason)}
                           transferQty={transferQtys[item.id] || 0}
                           onUpdateTransferDelta={(delta: number) => handleUpdateTransfer(item.id, delta)}
                           onSetTransferQty={(qty: number) => handleSetTransferQty(item.id, qty)}
@@ -207,8 +191,9 @@ export function StockManager({ language, onBack, stock, items, setItems }: Stock
                           language={language}
                           t={t}
                           openNumpad={openNumpad}
+                          onEdit={() => setEditingItem(item)}
+                          onDelete={() => handleDelete(item.id)}
                         />
-                      </>
                     )}
                   </div>
                 );
@@ -511,7 +496,7 @@ function ItemForm({ t, language, initialItem, onSave, onCancel }: any) {
   );
 }
 
-function StockRow({ item, stockInfo, onUpdateFrozen, onUpdateFried, transferQty, onUpdateTransferDelta, onSetTransferQty, onTransfer, language, t, openNumpad }: any) {
+function StockRow({ item, stockInfo, onUpdateFrozen, onUpdateFried, transferQty, onUpdateTransferDelta, onSetTransferQty, onTransfer, language, t, openNumpad, onEdit, onDelete }: any) {
   const [image] = useItemImage(item.id);
   const [localFrozen, setLocalFrozen] = useState(stockInfo.frozenQty);
   
@@ -564,9 +549,25 @@ function StockRow({ item, stockInfo, onUpdateFrozen, onUpdateFried, transferQty,
             <span className="text-gray-400 text-xs text-center px-2">No Image</span>
           )}
         </div>
-        <h3 className="font-heading font-bold text-lg md:text-xl text-brand-charcoal text-balance">
-          {t[item.id as keyof typeof t] || item.nameEn}
-        </h3>
+        <div className="flex flex-col gap-2 w-full items-center md:items-start">
+          <h3 className="font-heading font-bold text-lg md:text-xl text-brand-charcoal text-balance text-center md:text-left">
+            {t[item.id as keyof typeof t] || item.nameEn}
+          </h3>
+          <div className="flex gap-2">
+            <button 
+              onClick={onEdit}
+              className="p-2 bg-white text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-100 shadow-sm active:scale-95 transition-transform"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={onDelete}
+              className="p-2 bg-white text-red-500 border border-red-200 rounded-xl hover:bg-red-50 shadow-sm active:scale-95 transition-transform"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Controls Section */}
@@ -713,7 +714,7 @@ function StockRow({ item, stockInfo, onUpdateFrozen, onUpdateFried, transferQty,
                     setDeductError(t.notEnoughFried);
                     return;
                   }
-                  onUpdateFried(stockInfo.friedQty - deductQty);
+                  onUpdateFried(stockInfo.friedQty - deductQty, friedMode);
                   setDeductQty(0);
                 }}
                 disabled={deductQty <= 0}

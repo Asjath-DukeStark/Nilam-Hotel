@@ -58,6 +58,8 @@ export function CategoryBar({ language, selectedCategory, onSelectCategory }: Ca
     { id: 'dolphinKottu', label: t.dolphinKottu, initial: 'DK' },
     { id: 'rice', label: t.rice, initial: 'R' },
     { id: 'dhosai', label: t.dhosai, initial: 'D' },
+    { id: 'meals', label: t.meals, initial: 'M' },
+    { id: 'gravy', label: t.gravy, initial: 'G' },
     { id: 'shorties', label: t.shorties, initial: 'S' },
     { id: 'beverage', label: t.beverage, initial: 'B' },
     { id: 'hot', label: t.hot, initial: 'H' },

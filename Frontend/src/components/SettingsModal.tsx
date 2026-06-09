@@ -365,6 +365,100 @@ export function SettingsModal({
               </div>
             </div>
 
+            {/* MEALS */}
+            <div className="bg-gray-50/50 p-3.5 rounded-xl border border-gray-100">
+              <h4 className="font-bold text-xs text-brand-charcoal mb-2 uppercase tracking-wide">{t.meals}</h4>
+              <div className="flex flex-col gap-2">
+                <PriceInputRow 
+                  label={t.idiyappam} 
+                  value={prices.mealsIdiyappam ?? 150} 
+                  onSave={(val) => setPrices(prev => ({ ...prev, mealsIdiyappam: val }))}
+                  t={t}
+                />
+                <PriceInputRow 
+                  label={t.parata} 
+                  value={prices.mealsParata ?? 150} 
+                  onSave={(val) => setPrices(prev => ({ ...prev, mealsParata: val }))}
+                  t={t}
+                />
+                <PriceInputRow 
+                  label={`${t.meals} · ${t.plain}`} 
+                  value={prices.mealsPlain ?? 0} 
+                  minValue={0}
+                  onSave={(val) => setPrices(prev => ({ ...prev, mealsPlain: val }))}
+                  t={t}
+                />
+                <PriceInputRow 
+                  label={`${t.meals} · ${t.sambal}`} 
+                  value={prices.mealsSambal ?? 30} 
+                  minValue={0}
+                  onSave={(val) => setPrices(prev => ({ ...prev, mealsSambal: val }))}
+                  t={t}
+                />
+                <PriceInputRow 
+                  label={`${t.curry} · ${t.nocurry}`} 
+                  value={prices.nocurry ?? 0} 
+                  minValue={0}
+                  onSave={(val) => setPrices(prev => ({ ...prev, nocurry: val }))}
+                  t={t}
+                />
+                <PriceInputRow 
+                  label={`${t.curry} · ${t.dhalcurry}`} 
+                  value={prices.dhalcurry ?? 50} 
+                  minValue={0}
+                  onSave={(val) => setPrices(prev => ({ ...prev, dhalcurry: val }))}
+                  t={t}
+                />
+                <PriceInputRow 
+                  label={`${t.curry} · ${t.eggcurry}`} 
+                  value={prices.eggcurry ?? 80} 
+                  minValue={0}
+                  onSave={(val) => setPrices(prev => ({ ...prev, eggcurry: val }))}
+                  t={t}
+                />
+                <PriceInputRow 
+                  label={`${t.curry} · ${t.fishcurry}`} 
+                  value={prices.fishcurry ?? 120} 
+                  minValue={0}
+                  onSave={(val) => setPrices(prev => ({ ...prev, fishcurry: val }))}
+                  t={t}
+                />
+                <PriceInputRow 
+                  label={`${t.curry} · ${t.chickencurry}`} 
+                  value={prices.chickencurry ?? 150} 
+                  minValue={0}
+                  onSave={(val) => setPrices(prev => ({ ...prev, chickencurry: val }))}
+                  t={t}
+                />
+                <PriceInputRow 
+                  label={`${t.curry} · ${t.beefcurry}`} 
+                  value={prices.beefcurry ?? 180} 
+                  minValue={0}
+                  onSave={(val) => setPrices(prev => ({ ...prev, beefcurry: val }))}
+                  t={t}
+                />
+              </div>
+            </div>
+
+            {/* GRAVY */}
+            <div className="bg-gray-50/50 p-3.5 rounded-xl border border-gray-100">
+              <h4 className="font-bold text-xs text-brand-charcoal mb-2 uppercase tracking-wide">{t.gravy}</h4>
+              <div className="flex flex-col gap-2">
+                <PriceInputRow 
+                  label={t.onePortion} 
+                  value={prices.gravyOnePortion ?? 100} 
+                  onSave={(val) => setPrices(prev => ({ ...prev, gravyOnePortion: val }))}
+                  t={t}
+                />
+                <PriceInputRow 
+                  label={t.halfPortion} 
+                  value={prices.gravyHalfPortion ?? 50} 
+                  onSave={(val) => setPrices(prev => ({ ...prev, gravyHalfPortion: val }))}
+                  t={t}
+                />
+              </div>
+            </div>
+
             {/* EXTRA PRICES */}
             <div className="bg-gray-50/50 p-3.5 rounded-xl border border-gray-100">
               <h4 className="font-bold text-xs text-brand-charcoal mb-2 uppercase tracking-wide">

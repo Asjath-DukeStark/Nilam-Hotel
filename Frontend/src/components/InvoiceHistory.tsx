@@ -27,7 +27,6 @@ export function InvoiceHistory({ language, onBack, onViewInvoice }: InvoiceHisto
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     
-    // Match invoice number
     const matchNo = inv.invoiceNo && inv.invoiceNo.toLowerCase().includes(query);
     
     // Match date: saved date format is YYYY-MM-DD
@@ -36,7 +35,10 @@ export function InvoiceHistory({ language, onBack, onViewInvoice }: InvoiceHisto
     const formattedDate = yyyy ? `${dd}/${mm}/${yyyy}` : '';
     const matchDate = (inv.date && inv.date.includes(query)) || formattedDate.includes(query);
     
-    return matchNo || matchDate;
+    const matchPhone = inv.phone && inv.phone.includes(query);
+    const matchName = inv.customerName && inv.customerName.toLowerCase().includes(query);
+    
+    return matchNo || matchDate || matchPhone || matchName;
   });
 
   return (

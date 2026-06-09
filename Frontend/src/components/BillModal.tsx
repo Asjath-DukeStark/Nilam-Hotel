@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Language, translations } from '../translations';
 import { BillItem } from '../types';
 
@@ -10,6 +10,7 @@ interface BillModalProps {
   orderType: 'takeaway' | 'dineIn' | 'both';
   tableNumber: string;
   phone?: string;
+  customerName?: string;
   restaurantName: string;
   onNewBill: () => void;
   extraPrices?: Record<string, number>;
@@ -22,10 +23,11 @@ interface BillModalProps {
   onEditItem?: (idx: number) => void;
   onDeleteItem?: (idx: number) => void;
   onAddMoreItems?: () => void;
-  onSaveInvoice?: (payStatus: 'pay' | 'paid', phone: string, printLanguage: 'en' | 'ta', invoiceNo: string) => void;
+  onSaveInvoice?: (payStatus: 'pay' | 'paid', phone: string, customerName: string, printLanguage: 'en' | 'ta', invoiceNo: string) => void;
   onCancelCheckout?: () => void;
   onUpdatePayStatus?: (invoiceNo: string, newStatus: 'pay' | 'paid') => void;
   onUpdatePhone?: (invoiceNo: string, newPhone: string) => void;
+  onUpdateCustomerName?: (invoiceNo: string, newName: string) => void;
   onEditHistoricalInvoice?: () => void;
 }
 
@@ -36,6 +38,7 @@ export function BillModal({
   orderType, 
   tableNumber, 
   phone: phoneProp, 
+  customerName: customerNameProp,
   restaurantName, 
   onNewBill, 
   extraPrices,
@@ -52,12 +55,33 @@ export function BillModal({
   onCancelCheckout,
   onUpdatePayStatus,
   onUpdatePhone,
+  onUpdateCustomerName,
   onEditHistoricalInvoice
 }: BillModalProps) {
   const [activeInvoiceNo, setActiveInvoiceNo] = useState<string>('');
   const [activePayStatus, setActivePayStatus] = useState<string>(payStatusProp || '');
   const [printLanguage, setPrintLanguage] = useState<'en' | 'ta'>(language);
   const [phone, setPhone] = useState(phoneProp || '');
+  const [customerName, setCustomerName] = useState(customerNameProp || '');
+
+  // Autocomplete customer name from phone number
+  useEffect(() => {
+    if (isViewOnly) return;
+    if (phone.length >= 3) {
+      try {
+        const saved = localStorage.getItem('customers');
+        if (saved) {
+          const list = JSON.parse(saved);
+          const matched = list.find((c: any) => c.phone === phone);
+          if (matched) {
+            setCustomerName(matched.name);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [phone, isViewOnly]);
 
   const activeT = translations[printLanguage];
   const total = items.reduce((sum, item) => sum + item.price, 0);
@@ -99,17 +123,17 @@ export function BillModal({
         // Allow state rendering to complete before print dialog blocks execution
         setTimeout(() => {
           window.print();
-          onSaveInvoice(status, phone, printLanguage, generatedNo);
+          onSaveInvoice(status, phone, customerName, printLanguage, generatedNo);
         }, 150);
       } else {
-        onSaveInvoice(status, phone, printLanguage, generatedNo);
+        onSaveInvoice(status, phone, customerName, printLanguage, generatedNo);
       }
     }
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full w-full bg-gray-100 z-50 overflow-y-auto pb-8">
-      <div className="flex-1 overflow-auto flex flex-col items-center justify-start p-6">
+    <div className="flex-1 flex flex-col h-full w-full bg-gray-100 z-50 overflow-hidden">
+      <div className="flex-1 scrollable flex flex-col items-center justify-start p-6 pb-12">
         
         {/* Printable Area */}
         <div className="bg-white text-black p-6 shadow-2xl max-w-[480px] w-full font-mono text-[length:var(--font-sm)] print:shadow-none print:m-0 print:p-0 print:w-full print:max-h-full print:overflow-visible relative overflow-hidden">
@@ -169,6 +193,12 @@ export function BillModal({
                 )}
               </>
             )}
+            {customerName && (
+              <div className="flex justify-between">
+                <span>{printLanguage === 'ta' ? 'வாடிக்கையாளர்:' : 'Customer:'}</span>
+                <span className="font-semibold">{customerName}</span>
+              </div>
+            )}
             {phone && (
               <div className="flex justify-between">
                 <span>{printLanguage === 'ta' ? 'தொலைபேசி:' : 'Phone:'}</span>
@@ -216,12 +246,12 @@ export function BillModal({
                     
                     const isMain = pName === actualMain;
                     if (isMain) {
-                      const extraQty = pQty - 1;
+                      const extraQty = pQty - (pName === 'egg' ? 3 : 1);
                       if (extraQty > 0) {
-                        breakdownParts.push(`${translatedName}×${extraQty} @ LKR${unitPrice}`);
+                        breakdownParts.push(`${translatedName} × ${extraQty}`);
                       }
                     } else {
-                      breakdownParts.push(`${translatedName}×${pQty} @ LKR${unitPrice}`);
+                      breakdownParts.push(`${translatedName} × ${pQty}`);
                     }
                   });
                   const breakdown = breakdownParts.join(' + ');
@@ -337,46 +367,83 @@ export function BillModal({
           </div>
         </div>
 
-        {/* Customer Phone Number Config Input (Screen only) */}
-        <div className="flex flex-col gap-1.5 w-full max-w-[480px] mx-auto print:hidden bg-white p-4 rounded-2xl border border-gray-200 shadow-sm mt-3">
-          <span className="text-xs font-semibold text-gray-500">
-            {printLanguage === 'ta' ? 'வாடிக்கையாளர் தொலைபேசி (விரும்பினால்):' : 'Customer Phone (optional):'}
-          </span>
-          <div className="flex bg-gray-50 rounded-xl border border-gray-200 overflow-hidden items-center focus-within:border-brand-primary focus-within:ring-1 focus-within:ring-brand-primary focus-within:bg-white transition-all mt-1">
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => {
-                const val = e.target.value.replace(/[^0-9]/g, '');
-                setPhone(val);
-                if (isViewOnly && onUpdatePhone && invoiceNoToRender) {
-                  onUpdatePhone(invoiceNoToRender, val);
-                }
-              }}
-              placeholder="e.g. 0771234567"
-              className="flex-1 py-2.5 px-3 bg-transparent outline-none font-heading font-bold text-brand-charcoal text-[16px] w-full"
-            />
-            {phone && (
-              <button
-                type="button"
-                onClick={() => {
-                  setPhone('');
+        {/* Customer Phone & Name Input (Screen only) */}
+        <div className="flex flex-col gap-3.5 w-full max-w-[480px] mx-auto print:hidden bg-white p-4 rounded-2xl border border-gray-200 shadow-sm mt-3">
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs font-semibold text-gray-500">
+              {printLanguage === 'ta' ? 'வாடிக்கையாளர் தொலைபேசி (விரும்பினால்):' : 'Customer Phone (optional):'}
+            </span>
+            <div className="flex bg-gray-50 rounded-xl border border-gray-200 overflow-hidden items-center focus-within:border-brand-primary focus-within:ring-1 focus-within:ring-brand-primary focus-within:bg-white transition-all">
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, '');
+                  setPhone(val);
                   if (isViewOnly && onUpdatePhone && invoiceNoToRender) {
-                    onUpdatePhone(invoiceNoToRender, '');
+                    onUpdatePhone(invoiceNoToRender, val);
                   }
                 }}
-                className="p-2 mr-1 text-gray-400 hover:text-brand-charcoal font-bold text-lg active:scale-90 transition-transform"
-              >
-                ×
-              </button>
-            )}
+                placeholder="e.g. 0771234567"
+                className="flex-1 py-2.5 px-3 bg-transparent outline-none font-heading font-bold text-brand-charcoal text-[16px] w-full"
+              />
+              {phone && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhone('');
+                    if (isViewOnly && onUpdatePhone && invoiceNoToRender) {
+                      onUpdatePhone(invoiceNoToRender, '');
+                    }
+                  }}
+                  className="p-2 mr-1 text-gray-400 hover:text-brand-charcoal font-bold text-lg active:scale-90 transition-transform"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs font-semibold text-gray-500">
+              {printLanguage === 'ta' ? 'வாடிக்கையாளர் பெயர் (விரும்பினால்):' : 'Customer Name (optional):'}
+            </span>
+            <div className="flex bg-gray-50 rounded-xl border border-gray-200 overflow-hidden items-center focus-within:border-brand-primary focus-within:ring-1 focus-within:ring-brand-primary focus-within:bg-white transition-all">
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCustomerName(val);
+                  if (isViewOnly && onUpdateCustomerName && invoiceNoToRender) {
+                    onUpdateCustomerName(invoiceNoToRender, val);
+                  }
+                }}
+                placeholder="e.g. John Doe"
+                className="flex-1 py-2.5 px-3 bg-transparent outline-none font-heading font-bold text-brand-charcoal text-[16px] w-full"
+              />
+              {customerName && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomerName('');
+                    if (isViewOnly && onUpdateCustomerName && invoiceNoToRender) {
+                      onUpdateCustomerName(invoiceNoToRender, '');
+                    }
+                  }}
+                  className="p-2 mr-1 text-gray-400 hover:text-brand-charcoal font-bold text-lg active:scale-90 transition-transform"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
       </div>
 
       {/* Action Bars (Screen only) */}
-      <div className="p-4 bg-white border-t border-gray-200 shrink-0 print:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] w-full sticky bottom-0 z-25">
+      <div className="p-4 bg-white border-t border-gray-200 shrink-0 print:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] w-full z-25">
         {isViewOnly ? (
           <div className="max-w-md mx-auto flex flex-wrap gap-2 justify-center">
             <button

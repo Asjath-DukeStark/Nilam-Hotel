@@ -141,12 +141,12 @@ export function OrderPanel({
                         
                         const isMain = pName === actualMain;
                         if (isMain) {
-                          const extraQty = pQty - 1;
+                          const extraQty = pQty - (pName === 'egg' ? 3 : 1);
                           if (extraQty > 0) {
-                            breakdownParts.push(`${translatedName}×${extraQty} @ LKR${unitPrice}`);
+                            breakdownParts.push(`${translatedName} × ${extraQty}`);
                           }
                         } else {
-                          breakdownParts.push(`${translatedName}×${pQty} @ LKR${unitPrice}`);
+                          breakdownParts.push(`${translatedName} × ${pQty}`);
                         }
                       });
                       const breakdown = breakdownParts.join(' + ');

@@ -35,5 +35,19 @@ export const DEFAULT_PRICES = {
   dolphinNormal: 350,
   dolphinFull: 500,
   dhosaBeef: 200,
-  dhosaExtra: 250
+  dhosaExtra: 250,
+  // Meals
+  mealsIdiyappam: 150,
+  mealsParata: 150,
+  mealsPlain: 0,
+  mealsSambal: 30,
+  nocurry: 0,
+  dhalcurry: 50,
+  eggcurry: 80,
+  fishcurry: 120,
+  chickencurry: 150,
+  beefcurry: 180,
+  // Gravy
+  gravyOnePortion: 100,
+  gravyHalfPortion: 50
 };

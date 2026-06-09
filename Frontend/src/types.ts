@@ -9,3 +9,9 @@ export interface BillItem {
   price: number;
   mainProtein?: string;
 }
+
+export interface Customer {
+  phone: string;
+  name: string;
+  createdAt: string;
+}

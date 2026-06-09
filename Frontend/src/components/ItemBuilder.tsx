@@ -24,7 +24,11 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
   const normalPrice = prices[normalPriceKey] ?? 350;
   const fullPrice = prices[fullPriceKey] ?? 500;
 
-  const [baseType, setBaseType] = useState<string>(initialItem?.baseType || '');
+  const [baseType, setBaseType] = useState<string>(() => {
+    if (initialItem?.baseType) return initialItem.baseType;
+    if (category === 'dolphinKottu') return 'rotti';
+    return '';
+  });
   const [proteins, setProteins] = useState<{ name: string; qty: number }[]>(() => {
     if (initialItem && initialItem.proteins) {
       return initialItem.proteins.map(p => typeof p === 'string' ? { name: p, qty: 1 } : p);
@@ -66,7 +70,7 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
       const existing = proteins.find(p => p.name === pName);
       const isMain = pName === mainProtein;
       const currentQty = existing ? existing.qty : 0;
-      const initialExtraQty = isMain ? Math.max(0, currentQty - 1) : currentQty;
+      const initialExtraQty = isMain ? Math.max(0, currentQty - (pName === 'egg' ? 3 : 1)) : currentQty;
 
       setPopupQty(String(initialExtraQty));
       setActiveProteinPopup(pName);
@@ -81,7 +85,7 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
           return [];
         } else {
           setMainProtein(pName);
-          return [{ name: pName, qty: 1 }];
+          return [{ name: pName, qty: pName === 'egg' ? 3 : 1 }];
         }
       });
     }
@@ -91,7 +95,7 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
     if (activeProteinPopup) {
       const pName = activeProteinPopup;
       const isMain = pName === mainProtein;
-      const newTotalQty = isMain ? extraQtyVal + 1 : extraQtyVal;
+      const newTotalQty = isMain ? extraQtyVal + (pName === 'egg' ? 3 : 1) : extraQtyVal;
 
       setProteins(prev => {
         if (newTotalQty <= 0 || (!isMain && extraQtyVal <= 0)) {
@@ -137,7 +141,7 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
           if (curr.length > 0) {
             const firstProtein = curr.find(p => p.name !== 'extra');
             if (firstProtein) {
-              return [{ name: firstProtein.name, qty: 1 }];
+              return [{ name: firstProtein.name, qty: firstProtein.name === 'egg' ? 3 : 1 }];
             }
           }
           return [];
@@ -173,7 +177,7 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
         const pPrice = extraPrices[priceKey] ?? 0;
         const isStandardProtein = ['chicken', 'beef', 'egg'].includes(p.name.toLowerCase());
         const isMain = p.name === mainProtein;
-        const chargedQty = (isStandardProtein && isMain && hasBaseSize) ? Math.max(0, p.qty - 1) : p.qty;
+        const chargedQty = (isStandardProtein && isMain && hasBaseSize) ? Math.max(0, p.qty - (p.name === 'egg' ? 3 : 1)) : p.qty;
         extraTotal += chargedQty * pPrice;
       });
     }
@@ -240,7 +244,9 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
             <div className="option-group">
               <span className="option-label">Base</span>
               <div className="option-row">
-                {['idiyappam', 'rotti'].map((base) => (
+                {['idiyappam', 'rotti']
+                  .filter((base) => !(category === 'dolphinKottu' && base === 'idiyappam'))
+                  .map((base) => (
                   <button
                     key={base}
                     onClick={() => handleBaseChange(base)}

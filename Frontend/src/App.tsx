@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { ArrowLeft, Settings, Package2, Receipt } from 'lucide-react';
+import { ArrowLeft, Settings, Package2, Receipt, Users } from 'lucide-react';
 import { InvoiceHistory } from './components/InvoiceHistory';
 import { ModeSelector } from './components/ModeSelector';
 import { CategoryBar } from './components/CategoryBar';
 import { OrderPanel } from './components/OrderPanel';
 import { ItemBuilder } from './components/ItemBuilder';
 import { DhosaiBuilder } from './components/DhosaiBuilder';
+import { MealsBuilder } from './components/MealsBuilder';
+import { GravyBuilder } from './components/GravyBuilder';
 import { FixedItemBuilder } from './components/FixedItemBuilder';
 import { BillModal } from './components/BillModal';
 import { SettingsModal } from './components/SettingsModal';
 import { StockManager } from './components/StockManager';
+import { CustomerSection } from './components/CustomerSection';
 import { Language, translations } from './translations';
 import { BillItem } from './types';
 import { SHORTIES_ITEMS, BEVERAGE_ITEMS, HOT_ITEMS, RESTAURANT_NAME, DEFAULT_PRICES } from './constants';
@@ -29,7 +32,7 @@ export default function App() {
   const [tableNumber, setTableNumber] = useState('');
 
   // Navigation & Page State
-  const [currentPage, setCurrentPage] = useState<'pos' | 'settings' | 'stock' | 'invoices'>('pos');
+  const [currentPage, setCurrentPage] = useState<'pos' | 'settings' | 'stock' | 'invoices' | 'customers'>('pos');
   const [isCheckoutMode, setIsCheckoutMode] = useState<boolean>(false);
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<any | null>(null);
@@ -39,7 +42,15 @@ export default function App() {
 
   const [prices, setPrices] = useState<Record<string, number>>(() => {
     const saved = localStorage.getItem('menu_prices');
-    return saved ? JSON.parse(saved) : DEFAULT_PRICES;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return { ...DEFAULT_PRICES, ...parsed };
+      } catch (e) {
+        console.error('Failed to parse menu_prices', e);
+      }
+    }
+    return DEFAULT_PRICES;
   });
 
   useEffect(() => {
@@ -123,7 +134,7 @@ export default function App() {
     setEditingItemIndex(null);
   };
 
-  const handleSaveInvoice = (payStatus: 'pay' | 'paid', phone: string, printLanguage: 'en' | 'ta', invoiceNo: string) => {
+  const handleSaveInvoice = (payStatus: 'pay' | 'paid', phone: string, customerName: string, printLanguage: 'en' | 'ta', invoiceNo: string) => {
     const now = new Date();
     const YYYY = now.getFullYear();
     const MM = String(now.getMonth() + 1).padStart(2, '0');
@@ -135,6 +146,30 @@ export default function App() {
     const finalInvoiceNo = isEditingExisting ? editingInvoiceNo : invoiceNo;
 
     const savedInvoices = JSON.parse(localStorage.getItem('invoices') || '[]');
+
+    // Save customer profile automatically
+    if (phone.trim()) {
+      try {
+        const savedCustomers = JSON.parse(localStorage.getItem('customers') || '[]');
+        const cleanPhone = phone.trim();
+        const cleanName = customerName.trim() || cleanPhone;
+        const existingIdx = savedCustomers.findIndex((c: any) => c.phone === cleanPhone);
+        if (existingIdx >= 0) {
+          if (customerName.trim()) {
+            savedCustomers[existingIdx].name = cleanName;
+          }
+        } else {
+          savedCustomers.push({
+            phone: cleanPhone,
+            name: cleanName,
+            createdAt: new Date().toISOString()
+          });
+        }
+        localStorage.setItem('customers', JSON.stringify(savedCustomers));
+      } catch (e) {
+        console.error('Failed to save customer during checkout', e);
+      }
+    }
     
     let updatedInvoices;
     if (isEditingExisting) {
@@ -146,6 +181,7 @@ export default function App() {
             orderType: orderType,
             tableNo: tableNumber,
             phone: phone.trim(),
+            customerName: customerName.trim(),
             items: [...billItems],
             total: billItems.reduce((sum, item) => sum + item.price, 0),
             payStatus,
@@ -163,6 +199,7 @@ export default function App() {
         orderType: orderType,
         tableNo: tableNumber,
         phone: phone.trim(),
+        customerName: customerName.trim(),
         items: [...billItems],
         total: billItems.reduce((sum, item) => sum + item.price, 0),
         payStatus,
@@ -220,6 +257,24 @@ export default function App() {
     localStorage.setItem('invoices', JSON.stringify(nextInvoices));
   };
 
+  const handleUpdateCustomerName = (invoiceNo: string, newName: string) => {
+    setViewingInvoice(prev => {
+      if (prev && prev.invoiceNo === invoiceNo) {
+        return { ...prev, customerName: newName };
+      }
+      return prev;
+    });
+
+    const savedInvoices = JSON.parse(localStorage.getItem('invoices') || '[]');
+    const nextInvoices = savedInvoices.map((inv: any) => {
+      if (inv.invoiceNo === invoiceNo) {
+        return { ...inv, customerName: newName };
+      }
+      return inv;
+    });
+    localStorage.setItem('invoices', JSON.stringify(nextInvoices));
+  };
+
   const handleEditHistoricalInvoice = (invoice: any) => {
     setEditingInvoiceNo(invoice.invoiceNo);
     setBillItems(invoice.items);
@@ -261,6 +316,10 @@ export default function App() {
         );
       case 'dhosai':
         return <DhosaiBuilder key="dhosai" prices={prices} initialItem={editingItem} {...commonProps} />;
+      case 'meals':
+        return <MealsBuilder key="meals" prices={prices} initialItem={editingItem} {...commonProps} />;
+      case 'gravy':
+        return <GravyBuilder key="gravy" prices={prices} initialItem={editingItem} {...commonProps} />;
       case 'shorties':
         return <FixedItemBuilder key="shorties" categoryId="shorties" items={shortiesItems} customPrices={itemPrices} stock={stock} initialItem={editingItem} {...commonProps} />;
       case 'beverage':
@@ -294,45 +353,52 @@ export default function App() {
             className="w-full h-full"
           >
             <AnimatePresence mode="wait">
-              {showBillModal ? (
-                <BillModal 
-                  key="checkout-bill"
-                  language={language}
-                  items={billItems}
-                  mode={mode}
-                  orderType={orderType}
-                  tableNumber={tableNumber}
-                  restaurantName={restaurantName}
-                  onNewBill={handleNewBill}
-                  extraPrices={extraPrices}
-                  isViewOnly={false}
-                  invoiceNo={editingInvoiceNo || undefined}
-                  onEditItem={(idx) => {
-                    setEditingItemIndex(idx);
-                    const item = billItems[idx];
-                    setSelectedCategory(item.categoryId);
-                    setShowBillModal(false);
-                  }}
-                  onDeleteItem={(idx) => {
-                    const item = billItems[idx];
-                    if (item && item.categoryId === 'shorties' && item.baseType) {
-                      stock.replenishStock(item.baseType, item.qty || 1);
-                    }
-                    setBillItems(prev => prev.filter((_, i) => i !== idx));
-                  }}
-                  onAddMoreItems={() => {
-                    setEditingItemIndex(null);
-                    setSelectedCategory(null);
-                    setShowBillModal(false);
-                  }}
-                  onSaveInvoice={handleSaveInvoice}
-                  onCancelCheckout={() => {
-                    setShowBillModal(false);
-                    setIsCheckoutMode(false);
-                    setEditingItemIndex(null);
-                  }}
-                />
-              ) : !mode ? (
+              {showBillModal ? (() => {
+                const editingInvoice = editingInvoiceNo 
+                  ? JSON.parse(localStorage.getItem('invoices') || '[]').find((inv: any) => inv.invoiceNo === editingInvoiceNo) 
+                  : null;
+                return (
+                  <BillModal 
+                    key="checkout-bill"
+                    language={language}
+                    items={billItems}
+                    mode={mode}
+                    orderType={orderType}
+                    tableNumber={tableNumber}
+                    phone={editingInvoice?.phone}
+                    customerName={editingInvoice?.customerName}
+                    restaurantName={restaurantName}
+                    onNewBill={handleNewBill}
+                    extraPrices={extraPrices}
+                    isViewOnly={false}
+                    invoiceNo={editingInvoiceNo || undefined}
+                    onEditItem={(idx) => {
+                      setEditingItemIndex(idx);
+                      const item = billItems[idx];
+                      setSelectedCategory(item.categoryId);
+                      setShowBillModal(false);
+                    }}
+                    onDeleteItem={(idx) => {
+                      const item = billItems[idx];
+                      if (item && item.categoryId === 'shorties' && item.baseType) {
+                        stock.replenishStock(item.baseType, item.qty || 1);
+                      }
+                      setBillItems(prev => prev.filter((_, i) => i !== idx));
+                    }}
+                    onAddMoreItems={() => {
+                      setEditingItemIndex(null);
+                      setSelectedCategory(null);
+                      setShowBillModal(false);
+                    }}
+                    onSaveInvoice={handleSaveInvoice}
+                    onCancelCheckout={() => {
+                      setShowBillModal(false);
+                      setIsCheckoutMode(false);
+                      setEditingItemIndex(null);
+                    }}
+                  />
+                );
+              })() : !mode ? (
                 <ModeSelector 
                   key="mode-selector" 
                   onSelectMode={setMode} 
@@ -403,6 +469,13 @@ export default function App() {
                           title="Invoice History"
                         >
                           <Receipt className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => setCurrentPage('customers')}
+                          className="p-3 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors active:scale-95 text-gray-600 ml-2"
+                          title={t.customers}
+                        >
+                          <Users className="w-5 h-5" />
                         </button>
                         <button 
                           onClick={() => setCurrentPage('settings')}
@@ -528,6 +601,25 @@ export default function App() {
           </motion.div>
         )}
 
+        {currentPage === 'customers' && (
+          <motion.div
+            key="customers-page"
+            initial={{ x: '100vw' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100vw' }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="w-full h-full fixed inset-0 z-50 bg-gray-50"
+          >
+            <CustomerSection 
+              language={language}
+              onBack={() => setCurrentPage('pos')}
+              onViewInvoice={(invoice) => {
+                setViewingInvoice(invoice);
+              }}
+            />
+          </motion.div>
+        )}
+
         {viewingInvoice && (
           <motion.div
             key="viewing-invoice-modal"
@@ -544,6 +636,7 @@ export default function App() {
               orderType={viewingInvoice.orderType}
               tableNumber={viewingInvoice.tableNo}
               phone={viewingInvoice.phone}
+              customerName={viewingInvoice.customerName}
               restaurantName={restaurantName}
               onNewBill={handleNewBill}
               extraPrices={extraPrices}
@@ -555,6 +648,7 @@ export default function App() {
               onCloseViewOnly={() => setViewingInvoice(null)}
               onUpdatePayStatus={handleUpdatePayStatus}
               onUpdatePhone={handleUpdatePhone}
+              onUpdateCustomerName={handleUpdateCustomerName}
               onEditHistoricalInvoice={() => handleEditHistoricalInvoice(viewingInvoice)}
             />
           </motion.div>
