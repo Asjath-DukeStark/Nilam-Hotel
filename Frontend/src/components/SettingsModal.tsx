@@ -18,6 +18,8 @@ interface SettingsModalProps {
   setBeverageItems: React.Dispatch<React.SetStateAction<any[]>>;
   hotItems: any[];
   setHotItems: React.Dispatch<React.SetStateAction<any[]>>;
+  shortiesItems: any[];
+  setShortiesItems: React.Dispatch<React.SetStateAction<any[]>>;
   onOpenStockManager: () => void;
   extraPrices: Record<string, number>;
   setExtraPrices: React.Dispatch<React.SetStateAction<Record<string, number>>>;
@@ -36,7 +38,7 @@ function PriceInputRow({
   label,
   value,
   onSave,
-  minValue = 1,
+  minValue = 0,
   t
 }: PriceInputRowProps) {
   const [localVal, setLocalVal] = useState(String(value));
@@ -47,7 +49,7 @@ function PriceInputRow({
   }, [value]);
 
   const handleBlur = () => {
-    let parsed = parseInt(localVal);
+    let parsed = parseFloat(localVal);
     if (isNaN(parsed) || parsed < minValue) {
       parsed = minValue;
     }
@@ -61,7 +63,11 @@ function PriceInputRow({
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/[^0-9]/g, '');
+    let val = e.target.value.replace(/[^0-9.]/g, '');
+    const parts = val.split('.');
+    if (parts.length > 2) {
+      val = parts[0] + '.' + parts.slice(1).join('');
+    }
     setLocalVal(val);
   };
 
@@ -75,8 +81,8 @@ function PriceInputRow({
         <span className="text-gray-400 text-xs font-semibold">{t.lkr}</span>
         <input 
           type="text" 
-          inputMode="numeric"
-          pattern="[0-9]*"
+          inputMode="decimal"
+          pattern="[0-9]*\.?[0-9]*"
           value={localVal}
           onChange={handleChange}
           onBlur={handleBlur}
@@ -93,7 +99,7 @@ interface ItemManagerFormProps {
   initialItem?: { id: string; nameEn?: string; nameTa?: string; price: number };
   onSave: (item: { id: string; nameEn?: string; nameTa?: string; price: number }) => void;
   onCancel: () => void;
-  categoryPrefix: 'bev' | 'hot';
+  categoryPrefix: 'bev' | 'hot' | 'short';
 }
 
 function ItemManagerForm({ t, language, initialItem, onSave, onCancel, categoryPrefix }: ItemManagerFormProps) {
@@ -234,14 +240,16 @@ export function SettingsModal({
   setBeverageItems,
   hotItems,
   setHotItems,
+  shortiesItems,
+  setShortiesItems,
   onOpenStockManager,
   extraPrices,
   setExtraPrices
 }: SettingsModalProps) {
   const t = translations[language];
 
-  const [addingCategory, setAddingCategory] = useState<'beverage' | 'hot' | null>(null);
-  const [editingItem, setEditingItem] = useState<{ category: 'beverage' | 'hot'; item: any } | null>(null);
+  const [addingCategory, setAddingCategory] = useState<'beverage' | 'hot' | 'shorties' | null>(null);
+  const [editingItem, setEditingItem] = useState<{ category: 'beverage' | 'hot' | 'shorties'; item: any } | null>(null);
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
 
   return (
@@ -370,29 +378,27 @@ export function SettingsModal({
               <h4 className="font-bold text-xs text-brand-charcoal mb-2 uppercase tracking-wide">{t.meals}</h4>
               <div className="flex flex-col gap-2">
                 <PriceInputRow 
-                  label={t.idiyappam} 
-                  value={prices.mealsIdiyappam ?? 150} 
-                  onSave={(val) => setPrices(prev => ({ ...prev, mealsIdiyappam: val }))}
+                  label={`${t.idiyappam} · ${t.plain} (${language === 'ta' ? 'ஒன்று' : 'Per Piece'})`}
+                  value={prices.mealsIdiyappamPlain ?? 10} 
+                  onSave={(val) => setPrices(prev => ({ ...prev, mealsIdiyappamPlain: val }))}
                   t={t}
                 />
                 <PriceInputRow 
-                  label={t.parata} 
-                  value={prices.mealsParata ?? 150} 
-                  onSave={(val) => setPrices(prev => ({ ...prev, mealsParata: val }))}
+                  label={`${t.idiyappam} · ${t.sambal} (${language === 'ta' ? 'ஒன்று' : 'Per Piece'})`}
+                  value={prices.mealsIdiyappamSambal ?? 12.50} 
+                  onSave={(val) => setPrices(prev => ({ ...prev, mealsIdiyappamSambal: val }))}
                   t={t}
                 />
                 <PriceInputRow 
-                  label={`${t.meals} · ${t.plain}`} 
-                  value={prices.mealsPlain ?? 0} 
-                  minValue={0}
-                  onSave={(val) => setPrices(prev => ({ ...prev, mealsPlain: val }))}
+                  label={`${t.rotti} / ${t.parata} · ${t.plain} (${language === 'ta' ? 'ஒன்று' : 'Per Piece'})`}
+                  value={prices.mealsParataPlain ?? 30} 
+                  onSave={(val) => setPrices(prev => ({ ...prev, mealsParataPlain: val }))}
                   t={t}
                 />
                 <PriceInputRow 
-                  label={`${t.meals} · ${t.sambal}`} 
-                  value={prices.mealsSambal ?? 30} 
-                  minValue={0}
-                  onSave={(val) => setPrices(prev => ({ ...prev, mealsSambal: val }))}
+                  label={`${t.rotti} / ${t.parata} · ${t.sambal} (${language === 'ta' ? 'ஒன்று' : 'Per Piece'})`}
+                  value={prices.mealsParataSambal ?? 33.33} 
+                  onSave={(val) => setPrices(prev => ({ ...prev, mealsParataSambal: val }))}
                   t={t}
                 />
                 <PriceInputRow 
@@ -490,21 +496,135 @@ export function SettingsModal({
 
         {/* Section 3: Shorties Items */}
         <div className="bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(0,0,0,0.06)] border border-gray-100">
-          <h3 className="text-[13px] font-bold tracking-wider text-gray-400 uppercase mb-2">
-            {t.shorties}
-          </h3>
-          <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-            {language === 'ta' 
-              ? 'சிற்றுண்டி பொருட்களின் துல்லியமான விலைகளை இருப்பு மேலாளரில் எளிதாக மாற்றலாம்.' 
-              : 'Manage and update Shorties prices alongside inventory in the interactive Stock Manager.'}
-          </p>
-          <button
-            onClick={onOpenStockManager}
-            className="w-full h-11 px-4 bg-brand-charcoal hover:bg-black text-white rounded-xl font-heading text-xs font-semibold uppercase active:scale-95 transition-all flex items-center justify-center gap-1.5 shadow-sm"
-          >
-            {t.stockManagement || 'Stock Management'}
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-[13px] font-bold tracking-wider text-gray-400 uppercase">
+              {t.shorties}
+            </h3>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onOpenStockManager}
+                className="flex items-center gap-1 bg-brand-charcoal text-white px-3 py-1 rounded-lg font-bold text-xs hover:bg-black transition-colors active:scale-95 shadow-xs"
+              >
+                {t.stockManagement || 'Stock'}
+              </button>
+              <button 
+                type="button"
+                onClick={() => {
+                  setAddingCategory('shorties');
+                  setEditingItem(null);
+                }}
+                className="flex items-center gap-1 bg-amber-500 text-white px-3 py-1 rounded-lg font-bold text-xs hover:bg-amber-600 transition-colors active:scale-95 shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {language === 'ta' ? 'சேர்க்க' : 'Add'}
+              </button>
+            </div>
+          </div>
+
+          {addingCategory === 'shorties' && (
+            <ItemManagerForm 
+              t={t}
+              language={language}
+              categoryPrefix="short"
+              onSave={(newItem) => {
+                setShortiesItems(prev => [...prev, newItem]);
+                setAddingCategory(null);
+              }}
+              onCancel={() => setAddingCategory(null)}
+            />
+          )}
+
+          {editingItem && editingItem.category === 'shorties' && (
+            <ItemManagerForm 
+              t={t}
+              language={language}
+              categoryPrefix="short"
+              initialItem={editingItem.item}
+              onSave={(updatedItem) => {
+                setShortiesItems(prev => prev.map(i => i.id === updatedItem.id ? updatedItem : i));
+                setEditingItem(null);
+              }}
+              onCancel={() => setEditingItem(null)}
+            />
+          )}
+
+          <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1 no-scrollbar">
+            {shortiesItems.map((short) => {
+              const isSelectedForDelete = deletingItemId === short.id;
+
+              if (isSelectedForDelete) {
+                return (
+                  <div key={short.id} className="flex flex-col gap-2 p-3 bg-red-50 border border-red-200/50 rounded-xl w-full animate-fade-in">
+                    <div className="text-xs font-semibold text-red-700 leading-tight">
+                      {language === 'ta' ? `${short.nameTa || short.nameEn} ஐ நீக்கவா? இதை செயல்தவிர்க்க முடியாது.` : `Delete ${short.nameEn}? This cannot be undone.`}
+                    </div>
+                    <div className="flex justify-end gap-1.5 mt-1">
+                      <button 
+                        type="button"
+                        onClick={() => setDeletingItemId(null)}
+                        className="px-2.5 py-1 text-[10px] font-bold bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700 uppercase"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          if (shortiesItems.length <= 1) {
+                            alert(language === 'ta' ? 'கடைசி பொருளை நீக்க முடியாது!' : 'Cannot delete the last remaining item.');
+                            setDeletingItemId(null);
+                            return;
+                          }
+                          setShortiesItems(prev => prev.filter(i => i.id !== short.id));
+                          window.localStorage.removeItem(`img_${short.id}`);
+                          setDeletingItemId(null);
+                        }}
+                        className="px-2.5 py-1 text-[10px] font-bold bg-red-650 hover:bg-red-700 text-white rounded-lg uppercase"
+                      >
+                        Confirm
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={short.id} className="flex items-center justify-between p-3 bg-white hover:bg-gray-50/50 rounded-xl border border-gray-100 transition-colors">
+                  <div className="flex-1 min-w-0 pr-1">
+                    <span className="font-semibold text-gray-700 text-xs block truncate">{short.nameEn}</span>
+                    {short.nameTa && <span className="text-[10px] text-gray-400 block truncate mt-0.5">{short.nameTa}</span>}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-gray-400 text-[10px] font-semibold">{t.lkr}</span>{' '}
+                    <span className="text-brand-charcoal font-bold text-xs">{short.price}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 ml-3">
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setEditingItem({ category: 'shorties', item: short });
+                        setAddingCategory(null);
+                      }}
+                      className="p-1.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                      title="Edit"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setDeletingItemId(short.id);
+                      }}
+                      className="p-1.5 bg-gray-50 border border-gray-200 text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Section 4: Beverage Items */}

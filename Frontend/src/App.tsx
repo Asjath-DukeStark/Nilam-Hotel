@@ -556,6 +556,8 @@ export default function App() {
               setBeverageItems={setBeverageItems}
               hotItems={hotItems}
               setHotItems={setHotItems}
+              shortiesItems={shortiesItems}
+              setShortiesItems={setShortiesItems}
               onOpenStockManager={() => setCurrentPage('stock')}
               extraPrices={extraPrices}
               setExtraPrices={setExtraPrices}

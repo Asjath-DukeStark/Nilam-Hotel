@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { X, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Language, translations } from '../translations';
@@ -32,6 +33,9 @@ export function OrderPanel({
 }: OrderPanelProps) {
   const t = translations[language];
 
+  const [showTableNumpadPopup, setShowTableNumpadPopup] = useState(false);
+  const [popupTableNo, setPopupTableNo] = useState('');
+
   const total = items.reduce((sum, item) => sum + item.price, 0);
 
   const handleClearText = () => {
@@ -64,15 +68,17 @@ export function OrderPanel({
               ))}
             </div>
             
-            <div className="flex bg-gray-50 rounded-xl border border-gray-200 overflow-hidden items-center focus-within:border-brand-primary focus-within:ring-1 focus-within:ring-brand-primary transition-all">
+            <div 
+              onClick={() => {
+                setPopupTableNo(tableNumber);
+                setShowTableNumpadPopup(true);
+              }}
+              className="flex bg-gray-50 rounded-xl border border-gray-200 overflow-hidden items-center cursor-pointer hover:bg-gray-100/50 transition-all min-h-[48px]"
+            >
               <span className="pl-4 pr-2 text-gray-500 font-heading font-medium text-sm">{t.tableNo}</span>
-              <input 
-                type="text" 
-                value={tableNumber}
-                onChange={(e) => setTableNumber(e.target.value)}
-                className="flex-1 py-3 px-2 bg-transparent outline-none font-heading font-bold text-brand-charcoal w-full text-[16px]"
-                placeholder="---"
-              />
+              <div className="flex-1 py-3 px-2 font-heading font-bold text-brand-charcoal text-[16px]">
+                {tableNumber || '---'}
+              </div>
             </div>
           </div>
         )}
@@ -245,6 +251,86 @@ export function OrderPanel({
           {t.completeBill}
         </button>
       </div>
+      {/* Table Number Numpad Popup Modal */}
+      {showTableNumpadPopup && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 shadow-2xl max-w-sm w-full mx-4 border border-gray-100 flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-200 font-sans">
+            <h3 className="text-lg font-heading font-bold text-brand-charcoal text-center">
+              {language === 'ta' ? 'மேசை எண்ணை உள்ளிடவும்' : 'Enter Table Number'}
+            </h3>
+            
+            {/* Current table number display */}
+            <div className="text-5xl font-heading font-black text-brand-primary my-2 bg-amber-50 px-6 py-2 rounded-2xl border border-amber-100 min-w-[100px] text-center">
+              {popupTableNo || '0'}
+            </div>
+            
+            {/* Large numpad */}
+            <div className="grid grid-cols-3 gap-2 w-full max-w-[280px]">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => {
+                    setPopupTableNo(prev => {
+                      if (prev === '0' || prev === '') return String(num);
+                      return prev + num;
+                    });
+                  }}
+                  className="h-12 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-lg font-heading font-bold text-brand-charcoal flex items-center justify-center outline-none"
+                >
+                  {num}
+                </button>
+              ))}
+              <div className="flex items-center justify-center"></div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPopupTableNo(prev => {
+                    if (prev === '0' || prev === '') return '0';
+                    return prev + '0';
+                  });
+                }}
+                className="h-12 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-lg font-heading font-bold text-brand-charcoal flex items-center justify-center outline-none"
+              >
+                0
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPopupTableNo(prev => {
+                    if (prev.length <= 1) return '';
+                    return prev.slice(0, -1);
+                  });
+                }}
+                className="h-12 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-lg font-heading font-bold text-brand-charcoal flex items-center justify-center outline-none"
+              >
+                ⌫
+              </button>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 w-full mt-2">
+              <button
+                type="button"
+                onClick={() => setShowTableNumpadPopup(false)}
+                className="flex-1 py-3 rounded-xl bg-gray-200 hover:bg-gray-300 active:scale-95 text-gray-700 font-heading font-bold uppercase transition-all outline-none"
+              >
+                {t.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTableNumber(popupTableNo);
+                  setShowTableNumpadPopup(false);
+                }}
+                className="flex-1 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-heading font-bold uppercase transition-all shadow-md shadow-amber-600/10 outline-none"
+              >
+                {language === 'ta' ? 'உறுதிசெய்' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

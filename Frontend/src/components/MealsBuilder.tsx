@@ -16,7 +16,7 @@ interface MealsBuilderProps {
 export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem }: MealsBuilderProps) {
   const t = translations[language];
 
-  const [baseType, setBaseType] = useState<string>(() => initialItem?.baseType || 'idiyappam');
+  const [baseType, setBaseType] = useState<string>(() => initialItem?.baseType || '');
   const [subType, setSubType] = useState<string>(() => initialItem?.subType || 'plain');
   const [curry, setCurry] = useState<string>(() => {
     if (initialItem?.proteins && initialItem.proteins.length > 0) {
@@ -25,49 +25,67 @@ export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem 
     }
     return 'nocurry';
   });
+  const [qty, setQty] = useState<number>(() => initialItem?.qty || 0);
+  const [showQtyPopup, setShowQtyPopup] = useState<boolean>(false);
+  const [popupQty, setPopupQty] = useState<string>('0');
 
   const [price, setPrice] = useState<string>(() => initialItem ? String(initialItem.price) : '0');
 
-  useEffect(() => {
-    const baseKey = baseType === 'idiyappam' ? 'mealsIdiyappam' : 'mealsParata';
-    const styleKey = subType === 'plain' ? 'mealsPlain' : 'mealsSambal';
-    const curryPriceKey = curry;
+  const isOptionsDisabled = !baseType;
 
-    const baseVal = prices[baseKey] ?? DEFAULT_PRICES[baseKey as keyof typeof DEFAULT_PRICES] ?? 150;
-    const styleVal = prices[styleKey] ?? DEFAULT_PRICES[styleKey as keyof typeof DEFAULT_PRICES] ?? 0;
+  useEffect(() => {
+    if (!baseType) {
+      setPrice('0');
+      return;
+    }
+    let baseKey = '';
+    if (baseType === 'idiyappam') {
+      baseKey = subType === 'plain' ? 'mealsIdiyappamPlain' : 'mealsIdiyappamSambal';
+    } else {
+      baseKey = subType === 'plain' ? 'mealsParataPlain' : 'mealsParataSambal';
+    }
+
+    const baseVal = prices[baseKey] ?? DEFAULT_PRICES[baseKey as keyof typeof DEFAULT_PRICES] ?? (baseKey.startsWith('mealsIdiyappam') ? 10 : 30);
+    const curryPriceKey = curry;
     const curryVal = prices[curryPriceKey] ?? DEFAULT_PRICES[curryPriceKey as keyof typeof DEFAULT_PRICES] ?? 0;
 
-    const computed = baseVal + styleVal + curryVal;
+    const computed = Math.ceil((baseVal * qty) + curryVal);
     
     if (initialItem && baseType === initialItem.baseType && subType === initialItem.subType) {
       const initialCurry = initialItem.proteins && initialItem.proteins.length > 0
         ? (typeof initialItem.proteins[0] === 'string' ? initialItem.proteins[0] : initialItem.proteins[0].name)
         : 'nocurry';
-      if (curry === initialCurry) {
+      if (curry === initialCurry && qty === (initialItem.qty || 1)) {
         return;
       }
     }
     setPrice(String(computed));
-  }, [baseType, subType, curry, prices]);
+  }, [baseType, subType, curry, prices, qty]);
 
   const resetState = () => {
-    setBaseType('idiyappam');
+    setBaseType('');
     setSubType('plain');
     setCurry('nocurry');
+    setQty(0);
   };
 
   const createItem = (): BillItem => {
     return {
       id: initialItem?.id || crypto.randomUUID(),
       categoryId: 'meals',
-      baseType,
+      baseType: baseType || undefined,
       subType,
       proteins: curry !== 'nocurry' ? [curry] : [],
+      qty,
       price: Number(price) || 0,
     };
   };
 
   const handleAddClick = () => {
+    if (!baseType) {
+      alert(language === 'ta' ? 'தயவுசெய்து இடியாப்பம் அல்லது பராட்டாவைத் தேர்ந்தெடுக்கவும்' : 'Please select a base type (Idiyappam or Parata)');
+      return;
+    }
     if (Number(price) <= 0) {
       alert('Price must be greater than 0');
       return;
@@ -77,6 +95,10 @@ export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem 
   };
 
   const handleCompleteClick = () => {
+    if (!baseType) {
+      alert(language === 'ta' ? 'தயவுசெய்து இடியாப்பம் அல்லது பராட்டாவைத் தேர்ந்தெடுக்கவும்' : 'Please select a base type (Idiyappam or Parata)');
+      return;
+    }
     if (Number(price) <= 0) {
       alert('Price must be greater than 0');
       return;
@@ -99,7 +121,11 @@ export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem 
               ].map((opt) => (
                 <button
                   key={opt.id}
-                  onClick={() => setBaseType(opt.id)}
+                  onClick={() => {
+                    setBaseType(opt.id);
+                    setPopupQty('0');
+                    setShowQtyPopup(true);
+                  }}
                   className={`option-btn font-heading font-semibold transition-all
                     ${baseType === opt.id
                       ? 'bg-amber-600 border-[1.5px] border-amber-600 text-white shadow-[0_2px_8px_rgba(217,119,6,0.35)] scale-[1.03]'
@@ -107,7 +133,7 @@ export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem 
                     }
                   `}
                 >
-                  {opt.label}
+                  {opt.label} {baseType === opt.id ? `(×${qty})` : ''}
                 </button>
               ))}
             </div>
@@ -123,9 +149,11 @@ export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem 
               ].map((opt) => (
                 <button
                   key={opt.id}
-                  onClick={() => setSubType(opt.id)}
+                  onClick={() => !isOptionsDisabled && setSubType(opt.id)}
                   className={`option-btn font-heading font-semibold transition-all
-                    ${subType === opt.id
+                    ${isOptionsDisabled
+                      ? 'bg-[#F5F5F5] border-[1.5px] border-[#E0E0E0] text-[#BCBCBC] cursor-not-allowed opacity-50 pointer-events-none'
+                      : subType === opt.id
                       ? 'bg-amber-600 border-[1.5px] border-amber-600 text-white shadow-[0_2px_8px_rgba(217,119,6,0.35)] scale-[1.03]'
                       : 'bg-[#F5F5F5] border-[1.5px] border-[#E0E0E0] text-[#1C1C1E] active:scale-95'
                     }
@@ -151,9 +179,11 @@ export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem 
               ].map((opt) => (
                 <button
                   key={opt.id}
-                  onClick={() => setCurry(opt.id)}
+                  onClick={() => !isOptionsDisabled && setCurry(opt.id)}
                   className={`option-btn font-heading font-semibold transition-all
-                    ${curry === opt.id
+                    ${isOptionsDisabled
+                      ? 'bg-[#F5F5F5] border-[1.5px] border-[#E0E0E0] text-[#BCBCBC] cursor-not-allowed opacity-50 pointer-events-none'
+                      : curry === opt.id
                       ? 'bg-amber-600 border-[1.5px] border-amber-600 text-white shadow-[0_2px_8px_rgba(217,119,6,0.35)] scale-[1.03]'
                       : 'bg-[#F5F5F5] border-[1.5px] border-[#E0E0E0] text-[#1C1C1E] active:scale-95'
                     }
@@ -184,6 +214,95 @@ export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem 
           {t.complete}
         </button>
       </div>
+
+      {/* Quantity Numpad Popup Modal */}
+      {showQtyPopup && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 shadow-2xl max-w-sm w-full mx-4 border border-gray-100 flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-heading font-bold text-brand-charcoal text-center">
+              {language === 'ta' 
+                ? `${baseType === 'idiyappam' ? t.idiyappam : (t.parata || 'பராட்டா')} ${t.enterQty || 'அளவை உள்ளிடவும்'}`
+                : `${t.enterQty || 'Enter Quantity'} for ${baseType === 'idiyappam' ? t.idiyappam : (t.parata || 'Parata')}`}
+            </h3>
+            
+            {/* Current quantity display */}
+            <div className="text-5xl font-heading font-black text-brand-primary my-2 bg-amber-50 px-6 py-2 rounded-2xl border border-amber-100 min-w-[100px] text-center">
+              {popupQty}
+            </div>
+            
+            {/* Large numpad */}
+            <div className="grid grid-cols-3 gap-2 w-full max-w-[280px]">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => {
+                    setPopupQty(prev => {
+                      if (prev === '0') return String(num);
+                      return prev + num;
+                    });
+                  }}
+                  className="h-12 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-lg font-heading font-bold text-brand-charcoal flex items-center justify-center outline-none"
+                >
+                  {num}
+                </button>
+              ))}
+              {/* Row 4: Empty space, 0, Backspace */}
+              <div className="flex items-center justify-center"></div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPopupQty(prev => {
+                    if (prev === '0') return '0';
+                    return prev + '0';
+                  });
+                }}
+                className="h-12 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-lg font-heading font-bold text-brand-charcoal flex items-center justify-center outline-none"
+              >
+                0
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPopupQty(prev => {
+                    if (prev.length <= 1) return '0';
+                    return prev.slice(0, -1);
+                  });
+                }}
+                className="h-12 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-lg font-heading font-bold text-brand-charcoal flex items-center justify-center outline-none"
+              >
+                ⌫
+              </button>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 w-full mt-2">
+              <button
+                type="button"
+                onClick={() => setShowQtyPopup(false)}
+                className="flex-1 py-3 rounded-xl bg-gray-200 hover:bg-gray-300 active:scale-95 text-gray-700 font-heading font-bold uppercase transition-all outline-none"
+              >
+                {t.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const val = Number(popupQty);
+                  if (isNaN(val) || val <= 0) {
+                    alert(language === 'ta' ? 'அளவு 1 ஐ விட அதிகமாக இருக்க வேண்டும்' : 'Quantity must be greater than 0');
+                    return;
+                  }
+                  setQty(val);
+                  setShowQtyPopup(false);
+                }}
+                className="flex-1 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-heading font-bold uppercase transition-all shadow-md shadow-amber-600/10 outline-none"
+              >
+                {language === 'ta' ? 'உறுதிசெய்' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

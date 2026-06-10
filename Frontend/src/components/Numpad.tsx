@@ -17,6 +17,10 @@ export function Numpad({ value, onChange, mode, language }: NumpadProps) {
     } else if (key === 'Backspace') {
       const next = value.slice(0, -1);
       onChange(next === '' ? '0' : next);
+    } else if (key === '.') {
+      if (!value.includes('.')) {
+        onChange(value + '.');
+      }
     } else {
       if (value === '0') {
         onChange(key);
@@ -26,7 +30,12 @@ export function Numpad({ value, onChange, mode, language }: NumpadProps) {
     }
   };
 
-  const buttons = [
+  const buttons = mode === 'price' ? [
+    '1', '2', '3',
+    '4', '5', '6',
+    '7', '8', '9',
+    '.', '0', 'Backspace'
+  ] : [
     '1', '2', '3',
     '4', '5', '6',
     '7', '8', '9',
