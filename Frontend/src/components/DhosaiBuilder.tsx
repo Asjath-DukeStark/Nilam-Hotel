@@ -75,7 +75,7 @@ export function DhosaiBuilder({ language, prices, onAdd, onComplete, initialItem
                 <button
                   key={type}
                   onClick={() => handleBaseTypeChange(type as 'beef' | 'extra')}
-                  className={`option-btn font-heading font-semibold transition-all
+                  className={`option-btn base-option-btn font-heading font-semibold transition-all
                     ${baseType === type
                       ? 'bg-amber-600 border-[1.5px] border-amber-600 text-white shadow-[0_2px_8px_rgba(217,119,6,0.35)] scale-[1.03]'
                       : 'bg-[#F5F5F5] border-[1.5px] border-[#E0E0E0] text-[#1C1C1E] active:scale-95'

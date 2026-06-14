@@ -3,40 +3,43 @@
 
 :root {
   /* Font sizes */
-  --font-xs:    clamp(9px,  1.2vw, 12px);
-  --font-sm:    clamp(11px, 1.5vw, 14px);
-  --font-md:    clamp(13px, 1.8vw, 16px);
-  --font-lg:    clamp(15px, 2.2vw, 20px);
-  --font-xl:    clamp(18px, 2.8vw, 26px);
+  --font-xs: clamp(9px, 1.2vw, 12px);
+  --font-sm: clamp(11px, 1.5vw, 14px);
+  --font-md: clamp(13px, 1.8vw, 16px);
+  --font-lg: clamp(15px, 2.2vw, 20px);
+  --font-xl: clamp(18px, 2.8vw, 26px);
   --font-price: clamp(20px, 3.5vw, 32px);
 
   /* Spacing */
-  --gap-sm:  clamp(4px,  0.8vw, 8px);
-  --gap-md:  clamp(8px,  1.2vw, 14px);
-  --gap-lg:  clamp(12px, 1.8vw, 20px);
+  --gap-sm: clamp(4px, 0.8vw, 8px);
+  --gap-md: clamp(8px, 1.2vw, 14px);
+  --gap-lg: clamp(12px, 1.8vw, 20px);
 
   /* Touch targets */
-  --btn-height-sm:  clamp(36px, 5vh,  44px);
-  --btn-height-md:  40px;
-  --btn-height-lg:  clamp(50px, 7vh,  64px);
-  --numpad-btn:     42px;
+  --btn-height-sm: clamp(36px, 5vh, 44px);
+  --btn-height-md: 40px;
+  --btn-height-lg: clamp(50px, 7vh, 64px);
+  --numpad-btn: 42px;
 
   /* Category bar */
-  --cat-btn-size:   60px;
-  --cat-font:       clamp(9px,  1.1vw, 12px);
+  --cat-btn-size: 60px;
+  --cat-font: clamp(9px, 1.1vw, 12px);
 
   /* Panel widths */
-  --left-panel:  60%;
+  --left-panel: 60%;
   --right-panel: 40%;
 }
 
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;  /* prevents double-tap zoom on buttons */
+  touch-action: manipulation;
+  /* prevents double-tap zoom on buttons */
 }
 
-html, body, #root {
+html,
+body,
+#root {
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -115,13 +118,20 @@ html, body, #root {
 .option-btn {
   height: 38px;
   font-size: 13px;
-  flex: 1;               /* equal width in a row */
-  min-width: 0;          /* allow shrinking */
+  flex: 1;
+  /* equal width in a row */
+  min-width: 0;
+  /* allow shrinking */
   padding: 0 var(--gap-sm);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.base-option-btn {
+  height: 50px;
+  font-size: 14px;
 }
 
 .option-row {
@@ -137,27 +147,27 @@ html, body, #root {
   overflow-x: auto;
   scrollbar-width: none;
   padding: 6px 10px;
-  height: 96px;
+  height: 116px;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
 }
 
 .category-btn {
   flex: 0 0 auto;
-  width: 72px;
-  height: 80px;
-  border-radius: 12px;
+  width: 100px;
+  height: 100px;
+  border-radius: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .cat-icon-area {
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 75px;
+  height: 75px;
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -173,17 +183,17 @@ html, body, #root {
 }
 
 .fallback-initial {
-  font-size: 20px;
+  font-size: 50px;
   font-weight: bold;
 }
 
 .cat-label {
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 500;
   text-align: center;
   white-space: normal;
   line-height: 1.2;
-  max-width: 68px;
+  max-width: 80px;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -215,7 +225,7 @@ html, body, #root {
 }
 
 .numpad-btn {
-  height: 38px;
+  height: 50px;
   font-size: 15px;
   border-radius: 8px;
   touch-action: manipulation;
@@ -223,7 +233,7 @@ html, body, #root {
 
 .price-display {
   font-size: 20px;
-  height: 36px;
+  height: 50px;
   margin-bottom: 4px;
 }
 
@@ -231,6 +241,7 @@ html, body, #root {
 button {
   user-select: none;
 }
+
 button:active:not(:disabled) {
   transform: scale(0.97);
   transition: transform 0.1s;
@@ -253,6 +264,7 @@ button:active:not(:disabled) {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -260,22 +272,26 @@ button:active:not(:disabled) {
 }
 
 @media (max-height: 750px) {
+
   /* Tighten spacing in main POS views */
   .main-layout .p-6 {
     padding: 0.75rem !important;
   }
+
   .main-layout .mb-6 {
     margin-bottom: 0.75rem !important;
   }
-  
+
   /* Shrink header bar size */
   .main-layout .h-\[48px\] {
     height: 40px !important;
   }
+
   .main-layout .h-\[48px\] .px-6 {
     padding-left: 0.75rem !important;
     padding-right: 0.75rem !important;
   }
+
   .main-layout .h-\[48px\] button {
     min-height: 34px !important;
     padding-top: 0.25rem !important;
@@ -286,28 +302,37 @@ button:active:not(:disabled) {
 
   /* Shrink Category Bar */
   .category-bar {
-    height: 76px;
-    padding: 2px 6px;
-    gap: 4px;
+    height: 92px;
+    padding: 4px 8px;
+    gap: 6px;
   }
+
   .category-btn {
-    height: 66px;
-    width: 60px;
+    height: 82px;
+    width: 72px;
   }
+
   .cat-icon-area {
-    width: 32px;
-    height: 32px;
+    width: 38px;
+    height: 38px;
   }
+
   .cat-label {
-    font-size: 8px;
-    max-width: 56px;
+    font-size: 9px;
+    max-width: 68px;
   }
 
   /* Shrink Option buttons */
   .option-btn {
-    height: 32px;
+    height: 34px;
     font-size: 11px;
   }
+
+  .base-option-btn {
+    height: 42px;
+    font-size: 13px;
+  }
+
   .option-group {
     margin-bottom: 4px;
   }
@@ -317,6 +342,7 @@ button:active:not(:disabled) {
     height: 32px;
     font-size: 13px;
   }
+
   .price-display {
     height: 32px;
     font-size: 16px;
@@ -328,26 +354,30 @@ button:active:not(:disabled) {
     height: 32px;
     font-size: 12px;
   }
-  
+
   /* Right panel layout tightness */
   .right-panel .p-6 {
     padding: 0.75rem !important;
   }
+
   .right-panel .mb-6 {
     margin-bottom: 0.5rem !important;
   }
+
   .right-panel .mb-4 {
     margin-bottom: 0.5rem !important;
   }
+
   .right-panel .pb-4 {
     padding-bottom: 0.5rem !important;
   }
+
   .right-panel .gap-4 {
     gap: 0.5rem !important;
   }
+
   .right-panel .py-3 {
     padding-top: 0.5rem !important;
     padding-bottom: 0.5rem !important;
   }
 }
-

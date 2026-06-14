@@ -30,12 +30,15 @@ export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem 
   const [popupQty, setPopupQty] = useState<string>('0');
 
   const [price, setPrice] = useState<string>(() => initialItem ? String(initialItem.price) : '0');
+  const [lastAction, setLastAction] = useState<'price' | 'qty'>('qty');
 
   const isOptionsDisabled = !baseType;
 
   useEffect(() => {
     if (!baseType) {
-      setPrice('0');
+      if (lastAction === 'qty') {
+        setPrice('0');
+      }
       return;
     }
     let baseKey = '';
@@ -49,24 +52,35 @@ export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem 
     const curryPriceKey = curry;
     const curryVal = prices[curryPriceKey] ?? DEFAULT_PRICES[curryPriceKey as keyof typeof DEFAULT_PRICES] ?? 0;
 
-    const computed = Math.ceil((baseVal * qty) + curryVal);
-    
-    if (initialItem && baseType === initialItem.baseType && subType === initialItem.subType) {
-      const initialCurry = initialItem.proteins && initialItem.proteins.length > 0
-        ? (typeof initialItem.proteins[0] === 'string' ? initialItem.proteins[0] : initialItem.proteins[0].name)
-        : 'nocurry';
-      if (curry === initialCurry && qty === (initialItem.qty || 1)) {
-        return;
+    if (lastAction === 'price') {
+      const numericPrice = Number(price);
+      const calculatedQty = baseVal > 0 ? Math.max(0, Math.round((numericPrice - curryVal) / baseVal)) : 0;
+      if (calculatedQty !== qty) {
+        setQty(calculatedQty);
+      }
+      // Keep user-entered price exactly as typed without overwriting it with the rounded baseVal * qty value
+    } else {
+      const computed = Math.ceil((baseVal * qty) + curryVal);
+      if (initialItem && baseType === initialItem.baseType && subType === initialItem.subType) {
+        const initialCurry = initialItem.proteins && initialItem.proteins.length > 0
+          ? (typeof initialItem.proteins[0] === 'string' ? initialItem.proteins[0] : initialItem.proteins[0].name)
+          : 'nocurry';
+        if (curry === initialCurry && qty === (initialItem.qty || 1)) {
+          return;
+        }
+      }
+      if (String(computed) !== price) {
+        setPrice(String(computed));
       }
     }
-    setPrice(String(computed));
-  }, [baseType, subType, curry, prices, qty]);
+  }, [baseType, subType, curry, prices, qty, price, lastAction]);
 
   const resetState = () => {
     setBaseType('');
     setSubType('plain');
     setCurry('nocurry');
     setQty(0);
+    setLastAction('qty');
   };
 
   const createItem = (): BillItem => {
@@ -122,11 +136,18 @@ export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem 
                 <button
                   key={opt.id}
                   onClick={() => {
-                    setBaseType(opt.id);
-                    setPopupQty('0');
-                    setShowQtyPopup(true);
+                    if (baseType === opt.id) {
+                      setPopupQty(String(qty));
+                      setShowQtyPopup(true);
+                    } else {
+                      setBaseType(opt.id);
+                      if (Number(price) === 0) {
+                        setPopupQty('0');
+                        setShowQtyPopup(true);
+                      }
+                    }
                   }}
-                  className={`option-btn font-heading font-semibold transition-all
+                  className={`option-btn base-option-btn font-heading font-semibold transition-all
                     ${baseType === opt.id
                       ? 'bg-amber-600 border-[1.5px] border-amber-600 text-white shadow-[0_2px_8px_rgba(217,119,6,0.35)] scale-[1.03]'
                       : 'bg-[#F5F5F5] border-[1.5px] border-[#E0E0E0] text-[#1C1C1E] active:scale-95'
@@ -199,7 +220,15 @@ export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem 
 
       {/* Numpad Area */}
       <div className="shrink-0 flex flex-col gap-[6px]">
-        <Numpad value={price} onChange={setPrice} mode="price" language={language} />
+        <Numpad
+          value={price}
+          onChange={(val) => {
+            setPrice(val);
+            setLastAction('price');
+          }}
+          mode="price"
+          language={language}
+        />
         
         <button
           onClick={handleAddClick}
@@ -293,6 +322,7 @@ export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem 
                     return;
                   }
                   setQty(val);
+                  setLastAction('qty');
                   setShowQtyPopup(false);
                 }}
                 className="flex-1 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-heading font-bold uppercase transition-all shadow-md shadow-amber-600/10 outline-none"
