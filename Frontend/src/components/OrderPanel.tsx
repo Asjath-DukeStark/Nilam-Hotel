@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, ReactNode } from 'react';
 import { X, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Language, translations } from '../translations';
 import { BillItem } from '../types';
+import { DEFAULT_PRICES } from '../constants';
 
 interface OrderPanelProps {
   language: Language;
@@ -16,6 +17,7 @@ interface OrderPanelProps {
   onClearBill: () => void;
   onCompleteBill: () => void;
   extraPrices?: Record<string, number>;
+  prices?: Record<string, number>;
 }
 
 export function OrderPanel({ 
@@ -29,7 +31,8 @@ export function OrderPanel({
   onRemoveItem, 
   onClearBill,
   onCompleteBill,
-  extraPrices
+  extraPrices,
+  prices
 }: OrderPanelProps) {
   const t = translations[language];
 
@@ -47,7 +50,7 @@ export function OrderPanel({
   return (
     <div className="right-panel bg-white border-l border-gray-200 flex flex-col h-full shadow-2xl relative z-10 shrink-0 min-w-[320px]">
       {/* Order List Area */}
-      <div className="flex-1 flex flex-col p-6 overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col p-6 overflow-hidden">
         
         {/* Dine-In Extras */}
         {mode === 'DINE_IN' && (
@@ -117,11 +120,53 @@ export function OrderPanel({
                   const isKottuFlow = ['kottu', 'dolphinKottu', 'rice'].includes(item.categoryId);
                   
                   let proteinsLabel = null;
-                  let sizeLabel = null;
+                  let sizeLabel: ReactNode = null;
+                  let unjustifiedExtra = 0;
+
+                  if (isKottuFlow) {
+                    const normalPriceKey = item.categoryId === 'kottu' ? 'kottuNormal' : item.categoryId === 'dolphinKottu' ? 'dolphinNormal' : 'riceNormal';
+                    const fullPriceKey = item.categoryId === 'kottu' ? 'kottuFull' : item.categoryId === 'dolphinKottu' ? 'dolphinFull' : 'riceFull';
+                    
+                    const normalPrice = (prices && prices[normalPriceKey]) ?? (DEFAULT_PRICES as any)[normalPriceKey] ?? 350;
+                    const fullPrice = (prices && prices[fullPriceKey]) ?? (DEFAULT_PRICES as any)[fullPriceKey] ?? 500;
+                    
+                    let basePrice = 0;
+                    if (item.sizeMode?.includes('normal')) basePrice = normalPrice;
+                    else if (item.sizeMode?.includes('full')) basePrice = fullPrice;
+                    
+                    let extraTotal = 0;
+                    const firstProtein = (item.proteins || []).find((pr: any) => {
+                      const prName = typeof pr === 'string' ? pr : pr.name;
+                      return prName !== 'extra';
+                    });
+                    const fallbackMain = firstProtein ? (typeof firstProtein === 'string' ? firstProtein : firstProtein.name) : undefined;
+                    const actualMain = item.mainProtein || fallbackMain;
+                    
+                    const hasBaseSize = item.sizeMode?.includes('normal') || item.sizeMode?.includes('full');
+                    
+                    (item.proteins || []).forEach((p: any) => {
+                      const pName = typeof p === 'string' ? p : p.name;
+                      const pQty = typeof p === 'string' ? 1 : p.qty;
+                      if (pName === 'extra') return;
+                      
+                      const priceKey = `extra${pName.charAt(0).toUpperCase()}${pName.slice(1).toLowerCase()}`;
+                      const unitPrice = (extraPrices && extraPrices[priceKey]) ?? (priceKey === 'extraChicken' ? 100 : priceKey === 'extraBeef' ? 120 : priceKey === 'extraEgg' ? 50 : 0);
+                      
+                      const isMain = pName === actualMain;
+                      let chargedQty = pQty;
+                      if (isMain && hasBaseSize) {
+                        chargedQty = Math.max(0, pQty - (pName === 'egg' ? 3 : 1));
+                      }
+                      extraTotal += chargedQty * unitPrice;
+                    });
+                    
+                    const calculatedPrice = basePrice + extraTotal;
+                    unjustifiedExtra = item.price - calculatedPrice;
+                  }
                   
                   if (isKottuFlow) {
                     const sizeMode = item.sizeMode || '';
-                    const hasExtra = sizeMode.includes('extra');
+                    const hasExtra = sizeMode.includes('extra') || unjustifiedExtra > 0;
                     
                     const firstProtein = (item.proteins || []).find((pr: any) => {
                       const prName = typeof pr === 'string' ? pr : pr.name;
@@ -155,16 +200,32 @@ export function OrderPanel({
                           breakdownParts.push(`${translatedName} × ${pQty}`);
                         }
                       });
+
+                      if (unjustifiedExtra > 0) {
+                        const formattedDiff = unjustifiedExtra % 1 === 0 ? unjustifiedExtra.toFixed(0) : unjustifiedExtra.toFixed(2);
+                        breakdownParts.push(`${t.extra || 'Extra'} ${categoryLabel} ${t.lkr || 'LKR'} ${formattedDiff}`);
+                      }
+
                       const breakdown = breakdownParts.join(' + ');
                       
                       const extraSuffix = breakdown ? `(${breakdown})` : '';
                       const extraWord = t.extra || 'Extra';
-                      if (sizeMode === 'normal_extra') {
-                        sizeLabel = `${t.normal} + ${extraWord}${extraSuffix}`;
-                      } else if (sizeMode === 'full_extra') {
-                        sizeLabel = `${t.full} + ${extraWord}${extraSuffix}`;
+                      if (sizeMode === 'normal_extra' || (sizeMode === 'normal' && unjustifiedExtra > 0)) {
+                        sizeLabel = (
+                          <>
+                            {t.normal} + <strong className="font-bold text-black" style={{ fontWeight: 'bold' }}>{extraWord}{extraSuffix}</strong>
+                          </>
+                        );
+                      } else if (sizeMode === 'full_extra' || (sizeMode === 'full' && unjustifiedExtra > 0)) {
+                        sizeLabel = (
+                          <>
+                            {t.full} + <strong className="font-bold text-black" style={{ fontWeight: 'bold' }}>{extraWord}{extraSuffix}</strong>
+                          </>
+                        );
                       } else {
-                        sizeLabel = `${extraWord}${extraSuffix}`;
+                        sizeLabel = (
+                          <strong className="font-bold text-black" style={{ fontWeight: 'bold' }}>{extraWord}{extraSuffix}</strong>
+                        );
                       }
                     } else {
                       if (sizeMode === 'normal') {
@@ -184,7 +245,7 @@ export function OrderPanel({
                     sizeLabel = item.sizeMode ? t[item.sizeMode as keyof typeof t] || item.sizeMode : null;
                   }
                   
-                  const parts = [
+                  const parts: ReactNode[] = [
                     categoryLabel,
                     baseTypeLabel,
                     subTypeLabel,
@@ -192,10 +253,17 @@ export function OrderPanel({
                     sizeLabel
                   ].filter(Boolean);
                   
-                  let titleStr = parts.join(' · ');
-                  if (item.qty) {
-                    titleStr += ` \u00d7 ${item.qty}`;
-                  }
+                  const titleElement = (
+                    <>
+                      {parts.map((part, index) => (
+                        <span key={index}>
+                          {part}
+                          {index < parts.length - 1 && ' · '}
+                        </span>
+                      ))}
+                      {item.qty && ` × ${item.qty}`}
+                    </>
+                  );
 
                   return (
                     <motion.div 
@@ -208,7 +276,7 @@ export function OrderPanel({
                     >
                       <div className="flex-1">
                         <p className="font-heading font-medium text-[15px] text-brand-charcoal leading-tight">
-                          {titleStr}
+                          {titleElement}
                         </p>
                         <p className="text-brand-primary font-semibold mt-1">
                           {t.lkr} {item.price.toFixed(2)}

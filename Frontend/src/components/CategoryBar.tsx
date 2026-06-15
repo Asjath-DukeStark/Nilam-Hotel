@@ -44,30 +44,25 @@ function CategoryButton({ cat, isSelected, onClick }: any) {
   );
 }
 
+import { MenuCategory } from '../catalog';
+
 interface CategoryBarProps {
   language: Language;
   selectedCategory: string | null;
   onSelectCategory: (id: string) => void;
+  categories: MenuCategory[];
 }
 
-export function CategoryBar({ language, selectedCategory, onSelectCategory }: CategoryBarProps) {
-  const t = translations[language];
-  
-  const categories = [
-    { id: 'kottu', label: t.kottu, initial: 'K' },
-    { id: 'dolphinKottu', label: t.dolphinKottu, initial: 'DK' },
-    { id: 'rice', label: t.rice, initial: 'R' },
-    { id: 'dhosai', label: t.dhosai, initial: 'D' },
-    { id: 'meals', label: t.meals, initial: 'M' },
-    { id: 'gravy', label: t.gravy, initial: 'G' },
-    { id: 'shorties', label: t.shorties, initial: 'S' },
-    { id: 'beverage', label: t.beverage, initial: 'B' },
-    { id: 'hot', label: t.hot, initial: 'H' },
-  ];
+export function CategoryBar({ language, selectedCategory, onSelectCategory, categories }: CategoryBarProps) {
+  const categoriesToRender = categories.map((cat) => ({
+    id: cat.id,
+    label: language === 'ta' ? cat.nameTa : cat.nameEn,
+    initial: cat.initial,
+  }));
 
   return (
     <div className="category-bar">
-      {categories.map((cat) => (
+      {categoriesToRender.map((cat) => (
         <CategoryButton
           key={cat.id}
           cat={cat}

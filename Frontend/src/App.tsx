@@ -18,6 +18,7 @@ import { Language, translations } from './translations';
 import { BillItem } from './types';
 import { SHORTIES_ITEMS, BEVERAGE_ITEMS, HOT_ITEMS, RESTAURANT_NAME, DEFAULT_PRICES } from './constants';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { DEFAULT_MENU_CATALOG, MenuCategory } from './catalog';
 import { useStock } from './hooks/useStock';
 
 export default function App() {
@@ -39,6 +40,22 @@ export default function App() {
   const [editingInvoiceNo, setEditingInvoiceNo] = useState<string | null>(null);
   const [itemPrices, setItemPrices] = useLocalStorage<Record<string, number>>('itemPrices', {});
   const [restaurantName, setRestaurantName] = useLocalStorage<string>('restaurantName', RESTAURANT_NAME);
+
+  const [menuCatalog, setMenuCatalog] = useState<MenuCategory[]>(() => {
+    const saved = localStorage.getItem('menu_catalog');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse menu_catalog', e);
+      }
+    }
+    return DEFAULT_MENU_CATALOG;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('menu_catalog', JSON.stringify(menuCatalog));
+  }, [menuCatalog]);
 
   const [prices, setPrices] = useState<Record<string, number>>(() => {
     const saved = localStorage.getItem('menu_prices');
@@ -84,7 +101,7 @@ export default function App() {
     if (isCheckoutMode) {
       if (editingItemIndex !== null) {
         const oldItem = billItems[editingItemIndex];
-        if (oldItem && oldItem.categoryId === 'shorties' && oldItem.baseType) {
+        if (oldItem && ['shorties', 'beverage', 'hot'].includes(oldItem.categoryId) && oldItem.baseType) {
           stock.replenishStock(oldItem.baseType, oldItem.qty || 1);
         }
         setBillItems(prev => {
@@ -104,7 +121,7 @@ export default function App() {
 
   const handleRemoveItem = (id: string) => {
     const item = billItems.find(x => x.id === id);
-    if (item && item.categoryId === 'shorties' && item.baseType) {
+    if (item && ['shorties', 'beverage', 'hot'].includes(item.categoryId) && item.baseType) {
       stock.replenishStock(item.baseType, item.qty || 1);
     }
     setBillItems(prev => prev.filter(item => item.id !== id));
@@ -112,7 +129,7 @@ export default function App() {
 
   const handleClearBill = () => {
     billItems.forEach(item => {
-      if (item.categoryId === 'shorties' && item.baseType) {
+      if (['shorties', 'beverage', 'hot'].includes(item.categoryId) && item.baseType) {
         stock.replenishStock(item.baseType, item.qty || 1);
       }
     });
@@ -299,44 +316,85 @@ export default function App() {
     };
 
     const editingItem = editingItemIndex !== null ? billItems[editingItemIndex] : undefined;
+    const categoryConfig = menuCatalog.find(c => c.id === selectedCategory);
 
-    switch (selectedCategory) {
-      case 'kottu':
-      case 'dolphinKottu':
-      case 'rice':
+    if (!categoryConfig) {
+      return (
+        <>
+          <div className="flex-1 bg-white rounded-3xl border border-gray-200 flex items-center justify-center mb-6 shadow-sm overflow-hidden">
+            <span className="text-gray-400 font-medium text-xl font-heading">{t.selectCategory}</span>
+          </div>
+          <div className="shrink-0 h-48 bg-white/50 border-2 border-dashed border-gray-300 rounded-3xl flex items-center justify-center">
+            <span className="text-gray-400 font-medium text-lg">{t.numpadPlaceholder}</span>
+          </div>
+        </>
+      );
+    }
+
+    switch (categoryConfig.type) {
+      case 'kottu-flow':
         return (
           <ItemBuilder 
             key={selectedCategory} 
             category={selectedCategory} 
+            categoryConfig={categoryConfig}
             prices={prices} 
             extraPrices={extraPrices}
             initialItem={editingItem}
             {...commonProps} 
           />
         );
-      case 'dhosai':
-        return <DhosaiBuilder key="dhosai" prices={prices} initialItem={editingItem} {...commonProps} />;
-      case 'meals':
-        return <MealsBuilder key="meals" prices={prices} initialItem={editingItem} {...commonProps} />;
-      case 'gravy':
-        return <GravyBuilder key="gravy" prices={prices} initialItem={editingItem} {...commonProps} />;
-      case 'shorties':
-        return <FixedItemBuilder key="shorties" categoryId="shorties" items={shortiesItems} customPrices={itemPrices} stock={stock} initialItem={editingItem} {...commonProps} />;
-      case 'beverage':
-        return <FixedItemBuilder key="beverage" categoryId="beverage" items={beverageItems} customPrices={itemPrices} initialItem={editingItem} {...commonProps} />;
-      case 'hot':
-        return <FixedItemBuilder key="hot" categoryId="hot" items={hotItems} customPrices={itemPrices} initialItem={editingItem} {...commonProps} />;
-      default:
+      case 'dhosai-flow':
         return (
-          <>
-            <div className="flex-1 bg-white rounded-3xl border border-gray-200 flex items-center justify-center mb-6 shadow-sm overflow-hidden">
-              <span className="text-gray-400 font-medium text-xl font-heading">{t.selectCategory}</span>
-            </div>
-            <div className="shrink-0 h-48 bg-white/50 border-2 border-dashed border-gray-300 rounded-3xl flex items-center justify-center">
-              <span className="text-gray-400 font-medium text-lg">{t.numpadPlaceholder}</span>
-            </div>
-          </>
+          <DhosaiBuilder 
+            key={selectedCategory} 
+            categoryConfig={categoryConfig}
+            prices={prices} 
+            initialItem={editingItem} 
+            {...commonProps} 
+          />
         );
+      case 'meals-flow':
+        return (
+          <MealsBuilder 
+            key={selectedCategory} 
+            categoryConfig={categoryConfig}
+            prices={prices} 
+            initialItem={editingItem} 
+            {...commonProps} 
+          />
+        );
+      case 'gravy-flow':
+        return (
+          <GravyBuilder 
+            key={selectedCategory} 
+            prices={prices} 
+            initialItem={editingItem} 
+            {...commonProps} 
+          />
+        );
+      case 'fixed-item-flow':
+        let items: any[] = [];
+        if (selectedCategory === 'shorties') items = shortiesItems;
+        else if (selectedCategory === 'beverage') items = beverageItems;
+        else if (selectedCategory === 'hot') items = hotItems;
+        else {
+          const customSaved = localStorage.getItem(`items_list_${selectedCategory}`);
+          items = customSaved ? JSON.parse(customSaved) : [];
+        }
+        return (
+          <FixedItemBuilder 
+            key={selectedCategory} 
+            categoryId={selectedCategory} 
+            items={items} 
+            customPrices={itemPrices} 
+            stock={stock} 
+            initialItem={editingItem} 
+            {...commonProps} 
+          />
+        );
+      default:
+        return null;
     }
   };
 
@@ -370,6 +428,7 @@ export default function App() {
                     restaurantName={restaurantName}
                     onNewBill={handleNewBill}
                     extraPrices={extraPrices}
+                    prices={prices}
                     isViewOnly={false}
                     invoiceNo={editingInvoiceNo || undefined}
                     onEditItem={(idx) => {
@@ -380,7 +439,7 @@ export default function App() {
                     }}
                     onDeleteItem={(idx) => {
                       const item = billItems[idx];
-                      if (item && item.categoryId === 'shorties' && item.baseType) {
+                      if (item && ['shorties', 'beverage', 'hot'].includes(item.categoryId) && item.baseType) {
                         stock.replenishStock(item.baseType, item.qty || 1);
                       }
                       setBillItems(prev => prev.filter((_, i) => i !== idx));
@@ -425,7 +484,7 @@ export default function App() {
                               setShowBillModal(true);
                             } else {
                               billItems.forEach(item => {
-                                if (item.categoryId === 'shorties' && item.baseType) {
+                                if (['shorties', 'beverage', 'hot'].includes(item.categoryId) && item.baseType) {
                                   stock.replenishStock(item.baseType, item.qty || 1);
                                 }
                               });
@@ -494,6 +553,7 @@ export default function App() {
                           language={language} 
                           selectedCategory={selectedCategory}
                           onSelectCategory={setSelectedCategory}
+                          categories={menuCatalog}
                         />
                       </div>
 
@@ -526,6 +586,7 @@ export default function App() {
                     onClearBill={handleClearBill}
                     onCompleteBill={handleCompleteBill}
                     extraPrices={extraPrices}
+                    prices={prices}
                   />
                 </motion.div>
               )}
@@ -561,6 +622,8 @@ export default function App() {
               onOpenStockManager={() => setCurrentPage('stock')}
               extraPrices={extraPrices}
               setExtraPrices={setExtraPrices}
+              menuCatalog={menuCatalog}
+              setMenuCatalog={setMenuCatalog}
             />
           </motion.div>
         )}
@@ -578,8 +641,12 @@ export default function App() {
               language={language}
               onBack={() => setCurrentPage('pos')}
               stock={stock}
-              items={shortiesItems}
-              setItems={setShortiesItems}
+              shortiesItems={shortiesItems}
+              setShortiesItems={setShortiesItems}
+              beverageItems={beverageItems}
+              setBeverageItems={setBeverageItems}
+              hotItems={hotItems}
+              setHotItems={setHotItems}
             />
           </motion.div>
         )}
@@ -642,6 +709,7 @@ export default function App() {
               restaurantName={restaurantName}
               onNewBill={handleNewBill}
               extraPrices={extraPrices}
+              prices={prices}
               isViewOnly={true}
               invoiceNo={viewingInvoice.invoiceNo}
               payStatus={viewingInvoice.payStatus}

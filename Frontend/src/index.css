@@ -30,6 +30,13 @@
   --right-panel: 40%;
 }
 
+@media (max-width: 1024px) {
+  :root {
+    --left-panel: 58%;
+    --right-panel: 42%;
+  }
+}
+
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
@@ -51,6 +58,7 @@ body,
 .scrollable {
   -webkit-overflow-scrolling: touch;
   overflow-y: auto;
+  min-height: 0;
 }
 
 /* Main Layout */
@@ -94,6 +102,7 @@ body,
 
 .option-area {
   flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding-right: 0.5rem;
@@ -145,6 +154,7 @@ body,
   display: flex;
   flex-direction: row;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   padding: 6px 10px;
   height: 116px;
@@ -271,7 +281,7 @@ button:active:not(:disabled) {
   }
 }
 
-@media (max-height: 750px) {
+@media (max-height: 850px) {
 
   /* Tighten spacing in main POS views */
   .main-layout .p-6 {

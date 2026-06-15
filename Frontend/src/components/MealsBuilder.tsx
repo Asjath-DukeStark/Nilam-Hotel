@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { Numpad } from './Numpad';
 import { Language, translations } from '../translations';
 import { BillItem } from '../types';
-import { DEFAULT_PRICES } from '../constants';
+import { MenuCategory } from '../catalog';
 
 interface MealsBuilderProps {
   key?: string | number;
+  categoryConfig: MenuCategory;
   language: Language;
   prices: Record<string, number>;
   onAdd: (item: BillItem) => void;
@@ -13,8 +14,11 @@ interface MealsBuilderProps {
   initialItem?: BillItem;
 }
 
-export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem }: MealsBuilderProps) {
+export function MealsBuilder({ categoryConfig, language, prices, onAdd, onComplete, initialItem }: MealsBuilderProps) {
   const t = translations[language];
+
+  const bases = categoryConfig.bases || [];
+  const curries = categoryConfig.curries || [];
 
   const [baseType, setBaseType] = useState<string>(() => initialItem?.baseType || '');
   const [subType, setSubType] = useState<string>(() => initialItem?.subType || 'plain');
@@ -41,6 +45,10 @@ export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem 
       }
       return;
     }
+    const baseConfig = bases.find(b => b.id === baseType);
+    const plainPriceDefault = baseConfig?.plainPrice ?? (baseType === 'idiyappam' ? 10 : 30);
+    const sambalPriceDefault = baseConfig?.sambalPrice ?? (baseType === 'idiyappam' ? 12.50 : 33.33);
+
     let baseKey = '';
     if (baseType === 'idiyappam') {
       baseKey = subType === 'plain' ? 'mealsIdiyappamPlain' : 'mealsIdiyappamSambal';
@@ -48,19 +56,19 @@ export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem 
       baseKey = subType === 'plain' ? 'mealsParataPlain' : 'mealsParataSambal';
     }
 
-    const baseVal = prices[baseKey] ?? DEFAULT_PRICES[baseKey as keyof typeof DEFAULT_PRICES] ?? (baseKey.startsWith('mealsIdiyappam') ? 10 : 30);
-    const curryPriceKey = curry;
-    const curryVal = prices[curryPriceKey] ?? DEFAULT_PRICES[curryPriceKey as keyof typeof DEFAULT_PRICES] ?? 0;
+    const baseVal = prices[baseKey] ?? (subType === 'plain' ? plainPriceDefault : sambalPriceDefault);
+    const currySurcharge = baseConfig?.currySurcharge ?? (baseType === 'idiyappam' ? 10 : 20);
+    const unitPrice = baseVal + (curry !== 'nocurry' ? currySurcharge : 0);
 
     if (lastAction === 'price') {
       const numericPrice = Number(price);
-      const calculatedQty = baseVal > 0 ? Math.max(0, Math.round((numericPrice - curryVal) / baseVal)) : 0;
+      const calculatedQty = unitPrice > 0 ? Math.max(0, Math.round(numericPrice / unitPrice)) : 0;
       if (calculatedQty !== qty) {
         setQty(calculatedQty);
       }
-      // Keep user-entered price exactly as typed without overwriting it with the rounded baseVal * qty value
+      // Keep user-entered price exactly as typed without overwriting it with the rounded unitPrice * qty value
     } else {
-      const computed = Math.ceil((baseVal * qty) + curryVal);
+      const computed = Math.ceil(unitPrice * qty);
       if (initialItem && baseType === initialItem.baseType && subType === initialItem.subType) {
         const initialCurry = initialItem.proteins && initialItem.proteins.length > 0
           ? (typeof initialItem.proteins[0] === 'string' ? initialItem.proteins[0] : initialItem.proteins[0].name)
@@ -126,39 +134,38 @@ export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem 
       <div className="option-area mb-2 no-scrollbar">
         <div className="flex flex-col">
           {/* Base Type */}
-          <div className="option-group">
-            <span className="option-label">{t.meals}</span>
-            <div className="option-row">
-              {[
-                { id: 'idiyappam', label: t.idiyappam },
-                { id: 'parata', label: t.parata },
-              ].map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => {
-                    if (baseType === opt.id) {
-                      setPopupQty(String(qty));
-                      setShowQtyPopup(true);
-                    } else {
-                      setBaseType(opt.id);
-                      if (Number(price) === 0) {
-                        setPopupQty('0');
+          {bases.length > 0 && (
+            <div className="option-group">
+              <span className="option-label">{t.meals}</span>
+              <div className="option-row">
+                {bases.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => {
+                      if (baseType === opt.id) {
+                        setPopupQty(String(qty));
                         setShowQtyPopup(true);
+                      } else {
+                        setBaseType(opt.id);
+                        if (Number(price) === 0) {
+                          setPopupQty('0');
+                          setShowQtyPopup(true);
+                        }
                       }
-                    }
-                  }}
-                  className={`option-btn base-option-btn font-heading font-semibold transition-all
-                    ${baseType === opt.id
-                      ? 'bg-amber-600 border-[1.5px] border-amber-600 text-white shadow-[0_2px_8px_rgba(217,119,6,0.35)] scale-[1.03]'
-                      : 'bg-[#F5F5F5] border-[1.5px] border-[#E0E0E0] text-[#1C1C1E] active:scale-95'
-                    }
-                  `}
-                >
-                  {opt.label} {baseType === opt.id ? `(×${qty})` : ''}
-                </button>
-              ))}
+                    }}
+                    className={`option-btn base-option-btn font-heading font-semibold transition-all
+                      ${baseType === opt.id
+                        ? 'bg-amber-600 border-[1.5px] border-amber-600 text-white shadow-[0_2px_8px_rgba(217,119,6,0.35)] scale-[1.03]'
+                        : 'bg-[#F5F5F5] border-[1.5px] border-[#E0E0E0] text-[#1C1C1E] active:scale-95'
+                      }
+                    `}
+                  >
+                    {language === 'ta' ? opt.nameTa : opt.nameEn} {baseType === opt.id ? `(×${qty})` : ''}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Style */}
           <div className="option-group">
@@ -187,34 +194,29 @@ export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem 
           </div>
 
           {/* Curry */}
-          <div className="option-group">
-            <span className="option-label">{t.curry}</span>
-            <div className="option-row flex-wrap gap-2">
-              {[
-                { id: 'nocurry', label: t.nocurry },
-                { id: 'dhalcurry', label: t.dhalcurry },
-                { id: 'eggcurry', label: t.eggcurry },
-                { id: 'fishcurry', label: t.fishcurry },
-                { id: 'chickencurry', label: t.chickencurry },
-                { id: 'beefcurry', label: t.beefcurry },
-              ].map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => !isOptionsDisabled && setCurry(opt.id)}
-                  className={`option-btn font-heading font-semibold transition-all
-                    ${isOptionsDisabled
-                      ? 'bg-[#F5F5F5] border-[1.5px] border-[#E0E0E0] text-[#BCBCBC] cursor-not-allowed opacity-50 pointer-events-none'
-                      : curry === opt.id
-                      ? 'bg-amber-600 border-[1.5px] border-amber-600 text-white shadow-[0_2px_8px_rgba(217,119,6,0.35)] scale-[1.03]'
-                      : 'bg-[#F5F5F5] border-[1.5px] border-[#E0E0E0] text-[#1C1C1E] active:scale-95'
-                    }
-                  `}
-                >
-                  {opt.label}
-                </button>
-              ))}
+          {curries.length > 0 && (
+            <div className="option-group">
+              <span className="option-label">{t.curry}</span>
+              <div className="option-row flex-wrap gap-2">
+                {curries.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => !isOptionsDisabled && setCurry(opt.id)}
+                    className={`option-btn font-heading font-semibold transition-all
+                      ${isOptionsDisabled
+                        ? 'bg-[#F5F5F5] border-[1.5px] border-[#E0E0E0] text-[#BCBCBC] cursor-not-allowed opacity-50 pointer-events-none'
+                        : curry === opt.id
+                        ? 'bg-amber-600 border-[1.5px] border-amber-600 text-white shadow-[0_2px_8px_rgba(217,119,6,0.35)] scale-[1.03]'
+                        : 'bg-[#F5F5F5] border-[1.5px] border-[#E0E0E0] text-[#1C1C1E] active:scale-95'
+                      }
+                    `}
+                  >
+                    {language === 'ta' ? opt.nameTa : opt.nameEn}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -249,9 +251,13 @@ export function MealsBuilder({ language, prices, onAdd, onComplete, initialItem 
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 animate-fade-in">
           <div className="bg-white rounded-3xl p-6 shadow-2xl max-w-sm w-full mx-4 border border-gray-100 flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-200">
             <h3 className="text-lg font-heading font-bold text-brand-charcoal text-center">
-              {language === 'ta' 
-                ? `${baseType === 'idiyappam' ? t.idiyappam : (t.parata || 'பராட்டா')} ${t.enterQty || 'அளவை உள்ளிடவும்'}`
-                : `${t.enterQty || 'Enter Quantity'} for ${baseType === 'idiyappam' ? t.idiyappam : (t.parata || 'Parata')}`}
+              {(() => {
+                const baseConfig = bases.find(b => b.id === baseType);
+                const baseName = baseConfig ? (language === 'ta' ? baseConfig.nameTa : baseConfig.nameEn) : baseType;
+                return language === 'ta' 
+                  ? `${baseName} ${t.enterQty || 'அளவை உள்ளிடவும்'}`
+                  : `${t.enterQty || 'Enter Quantity'} for ${baseName}`;
+              })()}
             </h3>
             
             {/* Current quantity display */}

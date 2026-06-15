@@ -15,18 +15,54 @@ interface StockManagerProps {
   language: Language;
   onBack: () => void;
   stock: ReturnType<typeof useStock>;
-  items: FixedItem[];
-  setItems: (items: FixedItem[]) => void;
+  shortiesItems: FixedItem[];
+  setShortiesItems: (items: FixedItem[]) => void;
+  beverageItems: FixedItem[];
+  setBeverageItems: (items: FixedItem[]) => void;
+  hotItems: FixedItem[];
+  setHotItems: (items: FixedItem[]) => void;
 }
 
-export function StockManager({ language, onBack, stock, items, setItems }: StockManagerProps) {
+export function StockManager({ 
+  language, 
+  onBack, 
+  stock, 
+  shortiesItems, 
+  setShortiesItems, 
+  beverageItems, 
+  setBeverageItems, 
+  hotItems, 
+  setHotItems 
+}: StockManagerProps) {
   const t = translations[language];
   const { stockData, updateFrozen, updateFried, transferStock, anyLowStock, anyOutOfStock, logs, clearLogs } = stock;
 
+  const [selectedCategory, setSelectedCategory] = useState<'shorties' | 'beverage' | 'hot'>('shorties');
   const [transferQtys, setTransferQtys] = useState<Record<string, number>>({});
   const [editingItem, setEditingItem] = useState<FixedItem | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'history'>('info');
+
+  const getCategoryData = () => {
+    switch (selectedCategory) {
+      case 'beverage':
+        return { items: beverageItems, setItems: setBeverageItems, label: t.beverage, prefix: 'bev' };
+      case 'hot':
+        return { items: hotItems, setItems: setHotItems, label: t.hot, prefix: 'hot' };
+      case 'shorties':
+      default:
+        return { items: shortiesItems, setItems: setShortiesItems, label: t.shorties, prefix: 'short' };
+    }
+  };
+
+  const { items, setItems, label: categoryLabel, prefix } = getCategoryData();
+
+  const getCategoryItemsLabel = () => {
+    if (language === 'ta') {
+      return `${categoryLabel} பொருட்கள்`;
+    }
+    return `${categoryLabel} Items`;
+  };
 
   const [numpadOpen, setNumpadOpen] = useState(false);
   const [numpadValue, setNumpadValue] = useState('0');
@@ -132,6 +168,31 @@ export function StockManager({ language, onBack, stock, items, setItems }: Stock
 
         {activeTab === 'info' ? (
           <>
+            {/* Category Selector */}
+            <div className="flex justify-center gap-2 max-w-lg mx-auto shadow-xs p-1 bg-gray-200/60 border border-gray-200 rounded-2xl">
+              {[
+                { id: 'shorties', label: t.shorties },
+                { id: 'beverage', label: t.beverage },
+                { id: 'hot', label: t.hot }
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => {
+                    setSelectedCategory(cat.id as any);
+                    setIsAdding(false);
+                    setEditingItem(null);
+                  }}
+                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all active:scale-95 border ${
+                    selectedCategory === cat.id
+                      ? 'bg-amber-500 text-white border-amber-500 shadow-md'
+                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
             {showBanner && (
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3 text-amber-800 shadow-sm">
                 <AlertTriangle className="w-6 h-6 shrink-0" />
@@ -140,7 +201,7 @@ export function StockManager({ language, onBack, stock, items, setItems }: Stock
             )}
 
             <div className="flex justify-between items-center bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
-              <h2 className="text-xl font-bold font-heading text-brand-charcoal">{t.shortiesItems}</h2>
+              <h2 className="text-xl font-bold font-heading text-brand-charcoal">{getCategoryItemsLabel()}</h2>
               <button 
                 onClick={() => setIsAdding(true)}
                 className="flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-xl font-bold hover:bg-amber-600 transition-colors active:scale-95 shadow-sm"
@@ -154,6 +215,7 @@ export function StockManager({ language, onBack, stock, items, setItems }: Stock
               <ItemForm 
                 t={t}
                 language={language}
+                prefix={prefix}
                 onSave={(newItem) => {
                   setItems([...items, newItem]);
                   setIsAdding(false);
@@ -374,13 +436,13 @@ export function StockManager({ language, onBack, stock, items, setItems }: Stock
   );
 }
 
-function ItemForm({ t, language, initialItem, onSave, onCancel }: any) {
+function ItemForm({ t, language, initialItem, onSave, onCancel, prefix }: any) {
   const [nameEn, setNameEn] = useState(initialItem?.nameEn || (initialItem ? '' : ''));
   const [nameTa, setNameTa] = useState(initialItem?.nameTa || '');
   const [price, setPrice] = useState(initialItem?.price?.toString() || '');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const itemId = initialItem?.id || `custom_${Date.now()}`;
+  const itemId = initialItem?.id || `${prefix || 'custom'}_${Date.now()}`;
   const [image, setImage] = useItemImage(itemId);
 
   // If we are editing, we preload the existing name if item was from constants

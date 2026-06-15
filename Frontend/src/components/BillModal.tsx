@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 import { Language, translations } from '../translations';
 import { BillItem } from '../types';
+import { DEFAULT_PRICES } from '../constants';
 
 interface BillModalProps {
   key?: string | number;
@@ -14,6 +15,7 @@ interface BillModalProps {
   restaurantName: string;
   onNewBill: () => void;
   extraPrices?: Record<string, number>;
+  prices?: Record<string, number>;
   isViewOnly?: boolean;
   invoiceNo?: string;
   payStatus?: string;
@@ -42,6 +44,7 @@ export function BillModal({
   restaurantName, 
   onNewBill, 
   extraPrices,
+  prices,
   isViewOnly = false,
   invoiceNo: invoiceNoProp,
   payStatus: payStatusProp,
@@ -133,10 +136,11 @@ export function BillModal({
 
   return (
     <div className="flex-1 flex flex-col h-full w-full bg-gray-100 z-50 overflow-hidden">
-      <div className="flex-1 scrollable flex flex-col items-center justify-start p-6 pb-12">
-        
-        {/* Printable Area */}
-        <div className="bg-white text-black p-6 shadow-2xl max-w-[480px] w-full font-mono text-[length:var(--font-sm)] print:shadow-none print:m-0 print:p-0 print:w-full print:max-h-full print:overflow-visible relative overflow-hidden">
+      <div className="flex-1 overflow-y-auto scrollable p-4 sm:p-6 pb-12 w-full">
+        <div className="max-w-[480px] w-full mx-auto flex flex-col items-center justify-start">
+          
+          {/* Printable Area */}
+          <div className="bg-white text-black p-6 shadow-2xl max-w-[480px] w-full font-mono text-[length:var(--font-sm)] print:shadow-none print:m-0 print:p-0 print:w-full print:max-h-full print:overflow-visible relative overflow-hidden">
           
           {/* Diagonal Seal Watermark */}
           {payStatusToRender && (
@@ -216,11 +220,53 @@ export function BillModal({
               const isKottuFlow = ['kottu', 'dolphinKottu', 'rice'].includes(item.categoryId);
               
               let proteinsLabel = null;
-              let sizeLabel = null;
+              let sizeLabel: ReactNode = null;
+              let unjustifiedExtra = 0;
+
+              if (isKottuFlow) {
+                const normalPriceKey = item.categoryId === 'kottu' ? 'kottuNormal' : item.categoryId === 'dolphinKottu' ? 'dolphinNormal' : 'riceNormal';
+                const fullPriceKey = item.categoryId === 'kottu' ? 'kottuFull' : item.categoryId === 'dolphinKottu' ? 'dolphinFull' : 'riceFull';
+                
+                const normalPrice = (prices && prices[normalPriceKey]) ?? (DEFAULT_PRICES as any)[normalPriceKey] ?? 350;
+                const fullPrice = (prices && prices[fullPriceKey]) ?? (DEFAULT_PRICES as any)[fullPriceKey] ?? 500;
+                
+                let basePrice = 0;
+                if (item.sizeMode?.includes('normal')) basePrice = normalPrice;
+                else if (item.sizeMode?.includes('full')) basePrice = fullPrice;
+                
+                let extraTotal = 0;
+                const firstProtein = (item.proteins || []).find((pr: any) => {
+                  const prName = typeof pr === 'string' ? pr : pr.name;
+                  return prName !== 'extra';
+                });
+                const fallbackMain = firstProtein ? (typeof firstProtein === 'string' ? firstProtein : firstProtein.name) : undefined;
+                const actualMain = item.mainProtein || fallbackMain;
+                
+                const hasBaseSize = item.sizeMode?.includes('normal') || item.sizeMode?.includes('full');
+                
+                (item.proteins || []).forEach((p: any) => {
+                  const pName = typeof p === 'string' ? p : p.name;
+                  const pQty = typeof p === 'string' ? 1 : p.qty;
+                  if (pName === 'extra') return;
+                  
+                  const priceKey = `extra${pName.charAt(0).toUpperCase()}${pName.slice(1).toLowerCase()}`;
+                  const unitPrice = (extraPrices && extraPrices[priceKey]) ?? (priceKey === 'extraChicken' ? 100 : priceKey === 'extraBeef' ? 120 : priceKey === 'extraEgg' ? 50 : 0);
+                  
+                  const isMain = pName === actualMain;
+                  let chargedQty = pQty;
+                  if (isMain && hasBaseSize) {
+                    chargedQty = Math.max(0, pQty - (pName === 'egg' ? 3 : 1));
+                  }
+                  extraTotal += chargedQty * unitPrice;
+                });
+                
+                const calculatedPrice = basePrice + extraTotal;
+                unjustifiedExtra = item.price - calculatedPrice;
+              }
               
               if (isKottuFlow) {
                 const sizeMode = item.sizeMode || '';
-                const hasExtra = sizeMode.includes('extra');
+                const hasExtra = sizeMode.includes('extra') || unjustifiedExtra > 0;
                 
                 const firstProtein = (item.proteins || []).find((pr: any) => {
                   const prName = typeof pr === 'string' ? pr : pr.name;
@@ -254,16 +300,32 @@ export function BillModal({
                       breakdownParts.push(`${translatedName} × ${pQty}`);
                     }
                   });
+
+                  if (unjustifiedExtra > 0) {
+                    const formattedDiff = unjustifiedExtra % 1 === 0 ? unjustifiedExtra.toFixed(0) : unjustifiedExtra.toFixed(2);
+                    breakdownParts.push(`${activeT.extra || 'Extra'} ${categoryLabel} ${activeT.lkr || 'LKR'} ${formattedDiff}`);
+                  }
+
                   const breakdown = breakdownParts.join(' + ');
                   
                   const extraSuffix = breakdown ? `(${breakdown})` : '';
                   const extraWord = activeT.extra || 'Extra';
-                  if (sizeMode === 'normal_extra') {
-                    sizeLabel = `${activeT.normal} + ${extraWord}${extraSuffix}`;
-                  } else if (sizeMode === 'full_extra') {
-                    sizeLabel = `${activeT.full} + ${extraWord}${extraSuffix}`;
+                  if (sizeMode === 'normal_extra' || (sizeMode === 'normal' && unjustifiedExtra > 0)) {
+                    sizeLabel = (
+                      <>
+                        {activeT.normal} + <strong className="font-bold text-black" style={{ fontWeight: 'bold' }}>{extraWord}{extraSuffix}</strong>
+                      </>
+                    );
+                  } else if (sizeMode === 'full_extra' || (sizeMode === 'full' && unjustifiedExtra > 0)) {
+                    sizeLabel = (
+                      <>
+                        {activeT.full} + <strong className="font-bold text-black" style={{ fontWeight: 'bold' }}>{extraWord}{extraSuffix}</strong>
+                      </>
+                    );
                   } else {
-                    sizeLabel = `${extraWord}${extraSuffix}`;
+                    sizeLabel = (
+                      <strong className="font-bold text-black" style={{ fontWeight: 'bold' }}>{extraWord}{extraSuffix}</strong>
+                    );
                   }
                 } else {
                   if (sizeMode === 'normal') {
@@ -282,7 +344,7 @@ export function BillModal({
                 sizeLabel = item.sizeMode ? activeT[item.sizeMode as keyof typeof activeT] || item.sizeMode : null;
               }
               
-              const parts = [
+              const parts: ReactNode[] = [
                 categoryLabel,
                 baseTypeLabel,
                 subTypeLabel,
@@ -290,15 +352,22 @@ export function BillModal({
                 sizeLabel
               ].filter(Boolean);
               
-              let titleStr = parts.join(' · ');
-              if (item.qty) {
-                titleStr += ` x ${item.qty}`;
-              }
+              const titleElement = (
+                <>
+                  {parts.map((part, index) => (
+                    <span key={index}>
+                      {part}
+                      {index < parts.length - 1 && ' · '}
+                    </span>
+                  ))}
+                  {item.qty && ` x ${item.qty}`}
+                </>
+              );
 
               return (
                 <div key={`${item.id}-${idx}`} className="flex flex-col gap-1 border-b border-dashed border-gray-100 pb-2 mb-1 last:border-0 last:pb-0 last:mb-0">
                   <div className="flex justify-between items-start gap-4">
-                    <span className="flex-1 break-words leading-tight">{titleStr}</span>
+                    <span className="flex-1 break-words leading-tight">{titleElement}</span>
                     <span className="whitespace-nowrap font-medium text-right">
                       {item.price.toFixed(2)}
                     </span>
@@ -441,6 +510,7 @@ export function BillModal({
         </div>
 
       </div>
+    </div>
 
       {/* Action Bars (Screen only) */}
       <div className="p-4 bg-white border-t border-gray-200 shrink-0 print:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] w-full z-25">

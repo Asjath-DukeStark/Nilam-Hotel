@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { Numpad } from './Numpad';
 import { Language, translations } from '../translations';
 import { BillItem } from '../types';
+import { MenuCategory } from '../catalog';
 
 interface ItemBuilderProps {
   key?: string | number;
   category: string;
+  categoryConfig: MenuCategory;
   language: Language;
   prices: Record<string, number>;
   extraPrices: Record<string, number>;
@@ -14,15 +16,17 @@ interface ItemBuilderProps {
   initialItem?: BillItem;
 }
 
-export function ItemBuilder({ category, language, prices, extraPrices, onAdd, onComplete, initialItem }: ItemBuilderProps) {
+export function ItemBuilder({ category, categoryConfig, language, prices, extraPrices, onAdd, onComplete, initialItem }: ItemBuilderProps) {
   const t = translations[language];
   const isRice = category === 'rice';
 
   const normalPriceKey = category === 'kottu' ? 'kottuNormal' : category === 'dolphinKottu' ? 'dolphinNormal' : 'riceNormal';
   const fullPriceKey = category === 'kottu' ? 'kottuFull' : category === 'dolphinKottu' ? 'dolphinFull' : 'riceFull';
 
-  const normalPrice = prices[normalPriceKey] ?? 350;
-  const fullPrice = prices[fullPriceKey] ?? 500;
+  const normalSize = categoryConfig.sizes?.find(s => s.id === 'normal');
+  const fullSize = categoryConfig.sizes?.find(s => s.id === 'full');
+  const normalPrice = normalSize?.price ?? prices[normalPriceKey] ?? 350;
+  const fullPrice = fullSize?.price ?? prices[fullPriceKey] ?? 500;
 
   const [baseType, setBaseType] = useState<string>(() => {
     if (initialItem?.baseType) return initialItem.baseType;
@@ -173,8 +177,10 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
     let extraTotal = 0;
     if (isExtra) {
       proteins.forEach(p => {
+        const proteinConfig = categoryConfig.proteins?.find(pr => pr.id === p.name);
+        const defaultExtraPrice = proteinConfig?.extraPrice ?? 0;
         const priceKey = `extra${p.name.charAt(0).toUpperCase()}${p.name.slice(1).toLowerCase()}`;
-        const pPrice = extraPrices[priceKey] ?? 0;
+        const pPrice = extraPrices[priceKey] ?? defaultExtraPrice;
         const isStandardProtein = ['chicken', 'beef', 'egg'].includes(p.name.toLowerCase());
         const isMain = p.name === mainProtein;
         const chargedQty = (isStandardProtein && isMain && hasBaseSize) ? Math.max(0, p.qty - (p.name === 'egg' ? 3 : 1)) : p.qty;
@@ -239,25 +245,23 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
       {/* Option Area (Middle) */}
       <div className="option-area mb-2 no-scrollbar">
         <div className="flex flex-col">
-          {/* STEP 1: Base Type (Skip for Rice) */}
-          {!isRice && (
+          {/* STEP 1: Base Type (Skip if category configuration has no bases) */}
+          {categoryConfig.bases && categoryConfig.bases.length > 0 && (
             <div className="option-group">
               <span className="option-label">Base</span>
               <div className="option-row">
-                {['idiyappam', 'rotti']
-                  .filter((base) => !(category === 'dolphinKottu' && base === 'idiyappam'))
-                  .map((base) => (
+                {categoryConfig.bases.map((baseOption) => (
                   <button
-                    key={base}
-                    onClick={() => handleBaseChange(base)}
+                    key={baseOption.id}
+                    onClick={() => handleBaseChange(baseOption.id)}
                     className={`option-btn base-option-btn font-heading font-semibold transition-all
-                      ${baseType === base
+                      ${baseType === baseOption.id
                         ? 'bg-amber-600 border-[1.5px] border-amber-600 text-white shadow-[0_2px_8px_rgba(217,119,6,0.35)] scale-[1.03]'
                         : 'bg-[#F5F5F5] border-[1.5px] border-[#E0E0E0] text-[#1C1C1E] active:scale-95'
                       }
                     `}
                   >
-                    {t[base as keyof typeof t]}
+                    {language === 'ta' ? baseOption.nameTa : baseOption.nameEn}
                   </button>
                 ))}
               </div>
@@ -273,15 +277,15 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
               )}
             </div>
             <div className="option-row mt-1" style={{ flexWrap: 'wrap' }}>
-              {['chicken', 'beef', 'egg', 'extra'].map((p) => {
-                const selectedItem = proteins.find((x) => x.name === p);
+              {[...(categoryConfig.proteins || []), { id: 'extra', nameEn: 'Extra', nameTa: 'கூடுதல்' }].map((p) => {
+                const selectedItem = proteins.find((x) => x.name === p.id);
                 const isSelected = !!selectedItem;
-                const isDisabled = p === 'extra' && !isExtra;
+                const isDisabled = p.id === 'extra' && !isExtra;
                 
                 return (
                   <button
-                    key={p}
-                    onClick={() => !isDisabled && toggleProtein(p)}
+                    key={p.id}
+                    onClick={() => !isDisabled && toggleProtein(p.id)}
                     className={`option-btn font-heading font-semibold transition-all
                       ${isDisabled
                         ? 'bg-[#F5F5F5] border-[1.5px] border-[#E0E0E0] text-[#BCBCBC] cursor-not-allowed opacity-50 pointer-events-none'
@@ -292,7 +296,7 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
                     `}
                     style={{ flexBasis: 'calc(50% - 3px)', flexGrow: 1 }}
                   >
-                    {t[p as keyof typeof t]}
+                    {language === 'ta' ? p.nameTa : p.nameEn}
                     {selectedItem && isExtra && selectedItem.qty > 1 ? ` ×${selectedItem.qty}` : ''}
                   </button>
                 );
@@ -374,9 +378,13 @@ export function ItemBuilder({ category, language, prices, extraPrices, onAdd, on
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50">
           <div className="bg-white rounded-3xl p-6 shadow-2xl max-w-sm w-full mx-4 border border-gray-100 flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-200">
             <h3 className="text-lg font-heading font-bold text-brand-charcoal text-center">
-              {language === 'ta' 
-                ? `எத்தனை கூடுதல் ${t[activeProteinPopup as keyof typeof t] || activeProteinPopup}?` 
-                : `How many Extra ${t[activeProteinPopup as keyof typeof t] || activeProteinPopup}?`}
+              {(() => {
+                const activeProteinConfig = categoryConfig.proteins?.find(pr => pr.id === activeProteinPopup);
+                const activeProteinName = activeProteinConfig ? (language === 'ta' ? activeProteinConfig.nameTa : activeProteinConfig.nameEn) : activeProteinPopup;
+                return language === 'ta' 
+                  ? `எத்தனை கூடுதல் ${activeProteinName}?` 
+                  : `How many Extra ${activeProteinName}?`;
+              })()}
             </h3>
             
             {/* Current quantity display */}
